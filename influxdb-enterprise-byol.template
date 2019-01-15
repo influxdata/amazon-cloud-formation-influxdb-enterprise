@@ -104,7 +104,7 @@
   },
   "Mappings": {
     "ClusterRegion": {
-      "us-east-1": { "BYOL": "ami-0cf4c4f0c23ed4363" }
+      "us-east-1": { "BYOL": "ami-02f62b7b06e66f46c" }
     }
   },
   "Resources": {
@@ -171,11 +171,11 @@
                 "source \"/opt/influxdb/setup.sh\"\n",
 
                 "run \\n",
-                "\"${stack_name}\" \\n",
-                "\"${aws_region}\" \\n",
-                "\"${license_key}\" \\n",
-                "\"${node_type}\" \\n",
-                "\"${username}\" \\n",
+                "\"${stack_name}\" \\\n",
+                "\"${aws_region}\" \\\n",
+                "\"${license_key}\" \\\n",
+                "\"${node_type}\" \\\n",
+                "\"${username}\" \\\n",
                 "\"${password}\"\n"
               ]
             ]
@@ -244,11 +244,11 @@
                 "source \"/opt/influxdb/setup.sh\"\n",
 
                 "run \\n",
-                "\"${stack_name}\" \\n",
-                "\"${aws_region}\" \\n",
-                "\"${license_key}\" \\n",
-                "\"${node_type}\" \\n",
-                "\"${username}\" \\n",
+                "\"${stack_name}\" \\\n",
+                "\"${aws_region}\" \\\n",
+                "\"${license_key}\" \\\n",
+                "\"${node_type}\" \\\n",
+                "\"${username}\" \\\n",
                 "\"${password}\"\n"
               ]
             ]
@@ -315,8 +315,7 @@
                     "ec2:CreateTags",
                     "ec2:DescribeTags",
                     "ec2:DescribeInstances",
-                    "autoscaling:DescribeAutoScalingGroups",
-                    "autoscaling:DescribeAutoScalingInstances"
+                    "autoscaling:DescribeAutoScalingGroups"
                   ],
                   "Resource": "*"
                 }

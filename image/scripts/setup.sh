@@ -127,7 +127,9 @@ function run {
   echo "Mounting EBS Volume for meta, data, wal and hh directories"
   mount_volumes
 
-  echo "Filling out InfluxDB template"
+  echo "Filling out InfluxDB config template"
+  sudo sed -i "s|PLACEHOLDER_LICENSE_KEY|${license_key}|" /etc/influxdb/influxdb-meta.conf > /dev/null
+  sudo sed -i "s|PLACEHOLDER_HOSTNAME|${hostname}|" /etc/influxdb/influxdb-meta.conf > /dev/null
   sudo sed -i "s|PLACEHOLDER_LICENSE_KEY|${license_key}|" /etc/influxdb/influxdb.conf > /dev/null
   sudo sed -i "s|PLACEHOLDER_HOSTNAME|${hostname}|" /etc/influxdb/influxdb.conf > /dev/null
 
