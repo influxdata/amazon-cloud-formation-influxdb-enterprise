@@ -233,21 +233,24 @@
 
                 "echo 'Running startup script...'\n",
 
+                "stack_name=", { "Ref": "AWS::StackName" }, "\n",
                 "aws_region", { "Ref": "AWS::Region" }, "\n",
                 "license_key=", { "Ref": "LicenseKey" }, "\n",
                 "node_type=\"meta\"\n",
                 "username=", { "Ref": "Username" }, "\n",
                 "password=", { "Ref": "Password" }, "\n",
-                "stackName=", { "Ref": "AWS::StackName" }, "\n",
+                "alb_endpoint=", { "Fn::GetAtt": [ "ApplicationLoadBalancer", "DNSName" ] }, "\n",
 
                 "source \"/opt/influxdb/setup.sh\"\n",
 
                 "run \\n",
+                "\"${stack_name}\" \\n",
                 "\"${aws_region}\" \\n",
                 "\"${license_key}\" \\n",
                 "\"${node_type}\" \\n",
                 "\"${username}\" \\n",
-                "\"${password}\"\n"
+                "\"${password}\"\n",
+                "\"${alb_endpoint}\"\n"
               ]
             ]
           }
