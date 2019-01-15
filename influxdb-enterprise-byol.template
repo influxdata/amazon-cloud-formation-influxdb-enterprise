@@ -104,7 +104,7 @@
   },
   "Mappings": {
     "ClusterRegion": {
-      "us-east-1": { "BYOL": "ami-0892fcf5d557e6c8a" }
+      "us-east-1": { "BYOL": "ami-0cf4c4f0c23ed4363" }
     }
   },
   "Resources": {
@@ -161,16 +161,17 @@
 
                 "echo 'Running startup script...'\n",
 
-                "aws_region", { "Ref": "AWS::Region" }, "\n",
+                "stack_name=", { "Ref": "AWS::StackName" }, "\n",
+                "aws_region=", { "Ref": "AWS::Region" }, "\n",
                 "license_key=", { "Ref": "LicenseKey" }, "\n",
                 "node_type=\"data\"\n",
                 "username=", { "Ref": "Username" }, "\n",
                 "password=", { "Ref": "Password" }, "\n",
-                "stackName=", { "Ref": "AWS::StackName" }, "\n",
 
                 "source \"/opt/influxdb/setup.sh\"\n",
 
                 "run \\n",
+                "\"${stack_name}\" \\n",
                 "\"${aws_region}\" \\n",
                 "\"${license_key}\" \\n",
                 "\"${node_type}\" \\n",
@@ -234,12 +235,11 @@
                 "echo 'Running startup script...'\n",
 
                 "stack_name=", { "Ref": "AWS::StackName" }, "\n",
-                "aws_region", { "Ref": "AWS::Region" }, "\n",
+                "aws_region=", { "Ref": "AWS::Region" }, "\n",
                 "license_key=", { "Ref": "LicenseKey" }, "\n",
                 "node_type=\"meta\"\n",
                 "username=", { "Ref": "Username" }, "\n",
                 "password=", { "Ref": "Password" }, "\n",
-                "alb_endpoint=", { "Fn::GetAtt": [ "ApplicationLoadBalancer", "DNSName" ] }, "\n",
 
                 "source \"/opt/influxdb/setup.sh\"\n",
 
@@ -249,8 +249,7 @@
                 "\"${license_key}\" \\n",
                 "\"${node_type}\" \\n",
                 "\"${username}\" \\n",
-                "\"${password}\"\n",
-                "\"${alb_endpoint}\"\n"
+                "\"${password}\"\n"
               ]
             ]
           }

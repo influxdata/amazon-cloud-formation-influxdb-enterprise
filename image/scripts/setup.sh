@@ -7,21 +7,6 @@ function get_hostname {
   echo -n "$(curl --location --silent --fail --show-error http://169.254.169.254/latest/meta-data/hostname)"
 }
 
-function get_instance_id {
-  echo -n "$(curl --location --silent --fail --show-error http://169.254.169.254/latest/meta-data/instance-id)"
-}
-
-function get_stack_id {
-  local -r region="$1"
-  local -r instance_id="$(get_instance_id)"
-
-  echo -n "$(aws ec2 describe-instances \
-    --instance-ids="${instance_id}" \
-    --region="us-east-1" \
-    --query "Reservations[0].Instances[0].Tags[?Key=='aws:cloudformation:stack-id'].Value" \
-    --output text)"
-}
-
 function get_asg_name {
   local -r stack_name="$1"
   local -r region="$2"
@@ -60,17 +45,17 @@ function mount_volumes {
   local -r mount_point="/mnt/influxdb"
 
   echo "Creating filesystem and mount point"
-  mkfs -t ext4 "${device_name}"
-  mkdir "${mountpoint}"
+  sudo mkfs -t ext4 "${device_name}"
+  sudo mkdir "${mount_point}"
 
   echo "Updating fstab"
-  echo -e "${device_name}\t${mount_point}\text4\tdefaults,nofail\t0\t2" >> /etc/fstab
+  echo -e "${device_name}\t${mount_point}\text4\tdefaults,nofail\t0\t2" | sudo tee -a /etc/fstab > /dev/null
 
   echo "Mounting volume"
-  mount -a
+  sudo mount -a
 
   echo "Creating directories for InfluxDB data (meta, data, wal, & hh)"
-  mkdir "${mount_point}/meta" "${mount_point}/data" "${mount_point}/wal" "${mount_point}/hh"
+  sudo mkdir "${mount_point}/meta" "${mount_point}/data" "${mount_point}/wal" "${mount_point}/hh"
 
   echo "Changing permissions of mount point"
   sudo chown -R influxdb:influxdb "${mount_point}"
@@ -81,7 +66,7 @@ function wait_for_asg_instances() {
   local -r asg_name="$2"
   local -r timeout_sec="${3:-600}"
   local current_time=$(date +%s)
-  local -r timeout_time_sec=$(("${current_time}" + "${timeout_sec}"))
+  local -r timeout_time_sec=$((${current_time} + ${timeout_sec}))
   local -r asg_target_size=$(aws autoscaling describe-auto-scaling-groups --region "${region}" --auto-scaling-group-names "${asg_name}" --query 'AutoScalingGroups[0].DesiredCapacity')
   local asg_instance_count=$(aws ec2 describe-instances --region "${region}" --filters "Name=tag:aws:autoscaling:groupName,Values=${asg_name}" "Name=instance-state-name,Values=running" --query 'Reservations[].Instances[].InstanceId | length(@)')
   
@@ -123,11 +108,11 @@ function init_cluster {
 }
 
 function create_influxdb_user {
-  local -r endpoint="$1"
+  local -r data_asg_hosts="$1"
   local -r username="$2"
   local -r password="$3"
 
-  influx -host ${endpoint} -execute "CREATE USER ${username} WITH PASSWORD '${password}' WITH ALL PRIVILEGES"
+  influx -host $(echo "${data_asg_hosts[0]}" | cut -f2) -execute "CREATE USER ${username} WITH PASSWORD '${password}' WITH ALL PRIVILEGES"
 }
 
 function run {
@@ -137,7 +122,6 @@ function run {
   local -r node_type="$4"
   local -r username="$5"
   local -r password="$6"
-  local -r endpoint="$7"
   local -r hostname="${HOSTNAME}"
 
   echo "Mounting EBS Volume for meta, data, wal and hh directories"
@@ -172,12 +156,12 @@ function run {
 
   echo "Checking if instance is the first meta node created"
   local -r meta_leader=$(get_meta_leader "${region}" "${meta_asg_name}")
-  if [ "${hostname}" != "${meta_leader}" ]; then
+  if [ "${hostname}" == "${meta_leader}" ]; then
     echo "Initiating cluster on meta node leader"
     init_cluster "${region}" "${meta_leader}" "${meta_asg_hosts}" "${data_asg_hosts}"
 
     echo "Creating initial InfluxDB Enterprise admin user"
-    create_influxdb_user "${endpoint}" "${username}" "${password}"
+    create_influxdb_user "${data_asg_hosts}" "${username}" "${password}"
   fi
 
   echo "InfluxDB Enterprise setup succeeded!"
