@@ -20,7 +20,7 @@ function get_asg_name {
 
 function get_asg_hosts {
   local -r region="$1"
-  local -r asg_name="$1"
+  local -r asg_name="$2"
 
   echo -n "$(aws ec2 describe-instances \
     --region "${region}" \
@@ -93,15 +93,13 @@ function init_cluster {
   local -r meta_leader="$2"
   local -r meta_asg_hosts="$3"
   local -r data_asg_hosts="$4"
-  local -r meta_hosts=$(aws ec2 describe-instances --region "${region}" --filters "Name=tag:aws:autoscaling:groupName,Values=${meta_asg_name}" "Name=instance-state-name,Values=running" --query 'Reservations[].Instances[] | sort_by(@, &LaunchTime)[] | [].PrivateDnsName' --output text)
-  local -r data_hosts=$(aws ec2 describe-instances --region "${region}" --filters "Name=tag:aws:autoscaling:groupName,Values=${data_asg_name}" "Name=instance-state-name,Values=running" --query 'Reservations[].Instances[] | sort_by(@, &LaunchTime)[] | [].PrivateDnsName' --output text)
 
   for host in $(echo "${meta_asg_hosts}" | cut -f2); do
     influxd-ctl add-meta "${host}:8091"
     echo -n "$?"
   done
 
-  for host in $(echo "${meta_asg_hosts}" | cut -f2); do
+  for host in $(echo "${data_asg_hosts}" | cut -f2); do
     influxd-ctl add-data "${host}:8088"
     echo -n "$?"
   done

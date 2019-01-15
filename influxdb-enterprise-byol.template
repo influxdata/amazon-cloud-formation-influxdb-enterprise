@@ -104,7 +104,7 @@
   },
   "Mappings": {
     "ClusterRegion": {
-      "us-east-1": { "BYOL": "ami-02f62b7b06e66f46c" }
+      "us-east-1": { "BYOL": "ami-0ea800c7e90519ba5" }
     }
   },
   "Resources": {
@@ -170,13 +170,7 @@
 
                 "source \"/opt/influxdb/setup.sh\"\n",
 
-                "run \\n",
-                "\"${stack_name}\" \\\n",
-                "\"${aws_region}\" \\\n",
-                "\"${license_key}\" \\\n",
-                "\"${node_type}\" \\\n",
-                "\"${username}\" \\\n",
-                "\"${password}\"\n"
+                "run \"${stack_name}\" \"${aws_region}\" \"${license_key}\" \"${node_type}\" \"${username}\" \"${password}\"\n"
               ]
             ]
           }
@@ -243,13 +237,7 @@
 
                 "source \"/opt/influxdb/setup.sh\"\n",
 
-                "run \\n",
-                "\"${stack_name}\" \\\n",
-                "\"${aws_region}\" \\\n",
-                "\"${license_key}\" \\\n",
-                "\"${node_type}\" \\\n",
-                "\"${username}\" \\\n",
-                "\"${password}\"\n"
+                "run \"${stack_name}\" \"${aws_region}\" \"${license_key}\" \"${node_type}\" \"${username}\" \"${password}\"\n"
               ]
             ]
           }
