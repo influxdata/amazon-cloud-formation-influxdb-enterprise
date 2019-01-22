@@ -110,7 +110,7 @@ function create_influxdb_user {
   local -r username="$2"
   local -r password="$3"
 
-  influx -host $(echo "${data_asg_hosts[0]}" | cut -f2) -execute "CREATE USER ${username} WITH PASSWORD '${password}' WITH ALL PRIVILEGES"
+  influx -host "$(echo "${data_asg_hosts}" | head -n 1 | cut -f2)" -execute "CREATE USER ${username} WITH PASSWORD '${password}' WITH ALL PRIVILEGES"
 }
 
 function run {
