@@ -13,9 +13,8 @@
       "ConstraintDescription" : "must be a list of at least two existing subnets associated with at least two different availability zones. They should be residing in the selected Virtual Private Cloud."
     },
     "LicenseKey": {
-      "Description": "A license key is required to deploy this solution. Visit https://portal.influxdata.com/users/aws to sign up for a free trial.",
-      "Type": "String",
-      "Default": "a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+      "Description": "A license key is required to deploy this solution. Visit https://portal.influxdata.com/users/aws to sign up for a free trial, E.g a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "Type": "String"
     },
     "Username": {
       "Description": "Username for cluster administrator",
@@ -75,7 +74,6 @@
       "Type": "String",
       "MinLength": "9",
       "MaxLength": "18",
-      "Default": "0.0.0.0/0",
       "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
       "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
     }
