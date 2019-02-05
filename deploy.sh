@@ -1,30 +1,36 @@
 #!/usr/bin/env bash
 
-STACK_NAME=$1
+# This is an development script for creating an InfluxDB Enterprise stack using
+# the Cloud Formation template in this repository. Please replace the InfluxDB password
 
-TEMPLATE_BODY="file://influxdb-enterprise-byol.template"
-REGION=`aws configure get region`
+# This script works for MacOS. To run on linux, swap the ssh_location command to
+# 'hostname --ip-address' or "0.0.0.0/0"
 
-LICENSE_KEY="${LICENSE_KEY}"
-USERNAME="admin"
-PASSWORD="admin"
-KEY_NAME="influxdb-${REGION}"
-SSH_LOCATION="0.0.0.0/0"
-VPC_ID="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[].VpcId" --output text)"
-# SUBNETS="$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${VPC_ID}" --query "Subnets[].SubnetId" --output text | tr '\t' '\,')"
-SUBNETS="subnet-28a7ff62\\,subnet-2a7bee76\\,subnet-ec4a96d2\\,subnet-2f4ec648\\,subnet-0a4add24\\,subnet-2c99db23"
+# By default, this script will not actually execute a deploy. Remove the
+# "--no-execute-changeset" option to create resources.
 
-aws cloudformation create-stack \
---capabilities CAPABILITY_IAM \
---template-body ${TEMPLATE_BODY} \
---stack-name ${STACK_NAME} \
---region ${REGION} \
---on-failure DELETE \
---parameters \
-ParameterKey=VpcId,ParameterValue=${VPC_ID} \
-ParameterKey=Subnets,ParameterValue=${SUBNETS} \
-ParameterKey=LicenseKey,ParameterValue=${LICENSE_KEY} \
-ParameterKey=Username,ParameterValue=${USERNAME} \
-ParameterKey=Password,ParameterValue=${PASSWORD} \
-ParameterKey=KeyName,ParameterValue=${KEY_NAME} \
-ParameterKey=SSHLocation,ParameterValue=${SSH_LOCATION}
+
+readonly stack_name="${1}"
+readonly influxdb_username="${2:-admin}"
+readonly influxdb_password="${3:-admin}"
+readonly license_key="${LICENSE_KEY}"
+
+readonly template="influxdb-enterprise-byol.template"
+readonly vpc="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[].VpcId" --output text)"
+readonly subnets=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-46ae0a3c" --query "Subnets[].SubnetId" --output text)
+readonly ssh_key_name="influxdb-$(aws configure get region)"
+readonly ssh_location="$(ipconfig getifaddr en0)/32"
+
+aws cloudformation deploy \
+    --capabilities CAPABILITY_IAM \
+    --template-file "${template}" \
+    --stack-name "${stack_name}" \
+    --no-execute-changeset \
+    --parameter-overrides \
+        VpcId="${vpc}" \
+        Subnets="$(echo "${subnets}" | gsed 's/[\t]/,/g')" \
+        LicenseKey="${license_key}" \
+        Username="${influxdb_username}" \
+        Password="${influxdb_password}" \
+        KeyName="${ssh_key_name}" \
+        SSHLocation="${ssh_location}"
