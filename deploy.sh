@@ -19,13 +19,12 @@ readonly template="influxdb-enterprise-byol.template"
 readonly vpc="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[].VpcId" --output text)"
 readonly subnets=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-46ae0a3c" --query "Subnets[].SubnetId" --output text)
 readonly ssh_key_name="influxdb-$(aws configure get region)"
-readonly ssh_location="$(ipconfig getifaddr en0)/32"
+readonly ssh_location="$(dig @resolver1.opendns.com ANY myip.opendns.com +short)/32"
 
 aws cloudformation deploy \
     --capabilities CAPABILITY_IAM \
     --template-file "${template}" \
     --stack-name "${stack_name}" \
-    --no-execute-changeset \
     --parameter-overrides \
         VpcId="${vpc}" \
         Subnets="$(echo "${subnets}" | gsed 's/[\t]/,/g')" \
