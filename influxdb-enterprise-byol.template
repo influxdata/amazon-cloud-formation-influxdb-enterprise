@@ -1,6 +1,85 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Description": "InfluxDB Enterprise (BYOL)",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [{
+        "Label": {
+          "default": "Network Configuration"
+        },
+        "Parameters": [
+          "VpcId",
+          "Subnets",
+          "KeyName",
+          "SSHLocation"
+        ]
+      }, {
+      "Label": {
+        "default": "InfluxDB Configuration"
+      },
+      "Parameters": [
+        "LicenseKey",
+        "Username",
+        "Password"
+      ]
+      }, {
+      "Label": {
+        "default": "InfluxDB Data Node Configuration"
+      },
+      "Parameters": [
+        "DataNodeInstanceCount",
+        "DataNodeInstanceType",
+        "DataNodeDiskSize"
+      ]
+      }, {
+        "Label": {
+          "default": "InfluxDB Meta Node Configuration"
+        },
+        "Parameters": [
+          "MetaNodeInstanceCount",
+          "MetaNodeInstanceType"
+        ]
+      }],
+      "ParameterLabels": {
+        "VpcId": {
+          "default": "VPC ID"
+        },
+        "Subnets": {
+          "default": "Subnets"
+        },
+        "KeyName": {
+          "default": "SSH Key Name"
+        },
+        "SSHLocation": {
+          "default": "SSH Access CIDR"
+        },
+        "LicenseKey": {
+          "default": "InfluxDB Enterprise License Key"
+        },
+        "Username": {
+          "default": "InfluxDB Administrator Username"
+        },
+        "Password": {
+          "default": "InfluxDB Administrator Password"
+        },
+        "DataNodeInstanceCount": {
+          "default": "InfluxDB Data Node Instance Count"
+        },
+        "DataNodeInstanceType": {
+          "default": "InfluxDB Data Node Instance Type"
+        },
+        "DataNodeDiskSize": {
+          "default": "InfluxDB Data Node Disk Size"
+        },
+        "MetaNodeInstanceCount": {
+          "default": "InfluxDB Meta Node Instance Count"
+        },
+        "MetaNodeInstanceType": {
+          "default": "InfluxDB Meta Node Instance Type"
+        }
+      }
+    }
+  },
   "Parameters": {
     "VpcId" : {
       "Type" : "AWS::EC2::VPC::Id",
@@ -13,15 +92,15 @@
       "ConstraintDescription" : "must be a list of at least two existing subnets associated with at least two different availability zones. They should be residing in the selected Virtual Private Cloud."
     },
     "LicenseKey": {
-      "Description": "A license key is required to deploy this solution. Visit https://portal.influxdata.com/users/aws to sign up for a free trial, E.g a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "Description": "A license key is required to deploy this solution, E.g a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx. Visit https://portal.influxdata.com/users/aws for a free trial",
       "Type": "String"
     },
     "Username": {
-      "Description": "Username for cluster administrator",
+      "Description": "Username for the initial cluster administrator user",
       "Type": "String"
     },
     "Password": {
-      "Description": "Password for cluster administrator",
+      "Description": "Password for cluster administrator user",
       "Type": "String",
       "NoEcho": true
     },
@@ -100,9 +179,15 @@
       ]
     }
   },
+  "Outputs": {
+    "InfluxDBAPIEndpoint": {
+      "Description": "The ALB endpoint that can be used to access the InfluxDB API. Listens on port 8086.",
+      "Value": { "Fn::GetAtt" : [ "ApplicationLoadBalancer", "DNSName" ]}
+    }
+  },
   "Mappings": {
     "ClusterRegion": {
-      "us-east-1": { "BYOL": "ami-0840759c3127675f7" }
+      "us-east-1": { "BYOL": "ami-084d9ee390ed5abee" }
     }
   },
   "Resources": {
@@ -130,7 +215,7 @@
       "Properties": {
         "ImageId": { "Fn::FindInMap": [ "ClusterRegion", { "Ref": "AWS::Region" }, "BYOL" ] },
         "InstanceType": { "Ref": "DataNodeInstanceType" },
-        "SecurityGroups": [ { "Ref": "InfluxDBSecurityGroup" } ],
+        "SecurityGroups": [ { "Ref": "ClusterSecurityGroup" } ],
         "KeyName": { "Ref": "KeyName" },
         "EbsOptimized": true,
         "IamInstanceProfile": { "Ref": "InfluxDBInstanceProfile" },
@@ -198,7 +283,7 @@
       "Properties": {
         "ImageId": { "Fn::FindInMap": [ "ClusterRegion", { "Ref": "AWS::Region" }, "BYOL" ] },
         "InstanceType": { "Ref": "MetaNodeInstanceType" },
-        "SecurityGroups": [ { "Ref": "InfluxDBSecurityGroup" } ],
+        "SecurityGroups": [ { "Ref": "ClusterSecurityGroup" } ],
         "KeyName": { "Ref": "KeyName" },
         "IamInstanceProfile": { "Ref": "InfluxDBInstanceProfile" },
         "BlockDeviceMappings":
@@ -245,6 +330,7 @@
     "ApplicationLoadBalancer" : {
       "Type" : "AWS::ElasticLoadBalancingV2::LoadBalancer",
       "Properties" : {
+        "SecurityGroups": [{ "Ref": "ALBSecurityGroup" }],
         "Subnets" : { "Ref" : "Subnets"}
       }
     },
@@ -264,11 +350,17 @@
       "Type" : "AWS::ElasticLoadBalancingV2::TargetGroup",
       "Properties" : {
         "HealthCheckIntervalSeconds" : 30,
-        "HealthCheckTimeoutSeconds" : 5,
-        "HealthyThresholdCount" : 3,
-        "Port" : 80,
+        "HealthCheckPath": "/ping",
+        "HealthCheckPort": "8086",
+        "HealthCheckProtocol": "HTTP",
+        "HealthCheckTimeoutSeconds" : 10,
+        "HealthyThresholdCount" : 2,
+        "Matcher": {
+          "HttpCode": "204"
+        },
+        "Port" : 8086,
         "Protocol" : "HTTP",
-        "UnhealthyThresholdCount" : 5,
+        "UnhealthyThresholdCount" : 2,
         "VpcId" : {"Ref" : "VpcId"}
       }
     },
@@ -311,18 +403,65 @@
         ]
       }
     },
-    "InfluxDBSecurityGroup": {
+    "ALBSecurityGroup": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "GroupDescription" : "Allow traffic on ports for InfluxDB, and SSH",
+        "GroupDescription" : "Allow traffic on port 8086 for InfluxDB",
+        "SecurityGroupIngress": [
+          { "IpProtocol": "tcp", "FromPort": 8086, "ToPort": 8086, "CidrIp": "0.0.0.0/0" }
+        ],
+        "VpcId": { "Ref": "VpcId" }
+      }
+    },
+    "ClusterSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription" : "Allow traffic on ports for InfluxDB between nodes, and SSH from SSHLocation",
         "SecurityGroupIngress": [
           { "IpProtocol": "tcp", "FromPort": 22, "ToPort": 22, "CidrIp": { "Ref": "SSHLocation" } },
-          { "IpProtocol": "tcp", "FromPort": 8086, "ToPort": 8086, "CidrIp": "0.0.0.0/0" },
-          { "IpProtocol": "tcp", "FromPort": 8088, "ToPort": 8088, "CidrIp": "0.0.0.0/0" },
-          { "IpProtocol": "tcp", "FromPort": 8089, "ToPort": 8089, "CidrIp": "0.0.0.0/0" },
-          { "IpProtocol": "tcp", "FromPort": 8091, "ToPort": 8091, "CidrIp": "0.0.0.0/0" }
+          { "IpProtocol": "tcp", "FromPort": 8086, "ToPort": 8086, "SourceSecurityGroupId": { "Ref": "ALBSecurityGroup" } }
         ],
-        "VpcId" : { "Ref" : "VpcId" }
+        "VpcId": { "Ref": "VpcId" }
+      }
+    },
+    "ClusterSecurityGroupIngress8086": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "ClusterSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": 8086,
+        "ToPort": 8086,
+        "SourceSecurityGroupId": { "Ref": "ClusterSecurityGroup" }
+      }
+    },
+    "ClusterSecurityGroupIngress8088": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "ClusterSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": 8088,
+        "ToPort": 8088,
+        "SourceSecurityGroupId": { "Ref": "ClusterSecurityGroup" }
+      }
+    },
+    "ClusterSecurityGroupIngress8089": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "ClusterSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": 8089,
+        "ToPort": 8089,
+        "SourceSecurityGroupId": { "Ref": "ClusterSecurityGroup" }
+      }
+    },
+    "ClusterSecurityGroupIngress8091": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": { "Ref": "ClusterSecurityGroup" },
+        "IpProtocol": "tcp",
+        "FromPort": 8091,
+        "ToPort": 8091,
+        "SourceSecurityGroupId": { "Ref": "ClusterSecurityGroup" }
       }
     }
   }

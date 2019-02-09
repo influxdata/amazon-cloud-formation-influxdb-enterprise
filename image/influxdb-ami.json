@@ -3,8 +3,7 @@
     "variables": {
         "aws_region": "us-east-1",
         "base_ami_name": "influxdb-enterprise",
-        "influx_version": "1.7.3",
-        "telegraf_version": "1.9.2"
+        "influx_version": "1.7.4rc0"
       },
     "builders": [{
         "name": "influxdb-ami-amazon-linux",
@@ -29,13 +28,12 @@
     "provisioners": [{
         "type": "shell",
         "inline": [
-            "sudo yum update -y",
-            "sudo yum install -y jq polkit"
+            "sudo yum update -y"
         ]
     },{
         "type": "shell",
         "inline": [
-            "wget https://dl.influxdata.com/enterprise/releases/influxdb-data-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm",
+            "curl https://dl.influxdata.com/enterprise/releases/influxdb-data-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm --output influxdb-data-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm",
             "sudo yum -y localinstall influxdb-data-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm",
             "sudo systemctl disable influxdb.service",
             "rm influxdb-data-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm"
@@ -43,18 +41,10 @@
     },{
         "type": "shell",
         "inline": [
-            "wget https://dl.influxdata.com/enterprise/releases/influxdb-meta-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm",
+            "curl https://dl.influxdata.com/enterprise/releases/influxdb-meta-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm --output influxdb-meta-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm",
             "sudo yum -y localinstall influxdb-meta-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm",
             "sudo systemctl disable influxdb-meta.service",
             "rm influxdb-meta-{{ user `influx_version` }}_c{{ user `influx_version` }}.x86_64.rpm"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
-            "wget https://dl.influxdata.com/telegraf/releases/telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm",
-            "sudo yum -y localinstall telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm",
-            "sudo systemctl disable telegraf.service",
-            "rm telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm"
         ]
     },{
         "type": "file",
@@ -66,10 +56,6 @@
         "destination": "/tmp/influxdb-meta.conf"
     },{
         "type": "file",
-        "source": "{{template_dir}}/config/telegraf.conf",
-        "destination": "/tmp/telegraf.conf"
-    },{
-        "type": "file",
         "source": "{{template_dir}}/scripts/setup.sh",
         "destination": "/tmp/setup.sh"
     },{
@@ -77,9 +63,7 @@
         "inline": [
             "sudo mv /tmp/influxdb.conf /etc/influxdb/influxdb.conf",
             "sudo mv /tmp/influxdb-meta.conf /etc/influxdb/influxdb-meta.conf",
-            "sudo mv /tmp/telegraf.conf /etc/telegraf/telegraf.conf",
             "sudo chown -R influxdb:influxdb /etc/influxdb",
-            "sudo chown telegraf:telegraf /etc/telegraf",
             "sudo mkdir /opt/influxdb",
             "sudo mv /tmp/setup.sh /opt/influxdb/setup.sh"
         ]
