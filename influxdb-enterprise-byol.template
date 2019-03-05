@@ -187,7 +187,7 @@
   },
   "Mappings": {
     "ClusterRegion": {
-      "us-east-1": { "BYOL": "ami-084d9ee390ed5abee" }
+      "us-east-1": { "BYOL": "ami-0adf615bb7ef06a92" }
     }
   },
   "Resources": {

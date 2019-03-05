@@ -3,12 +3,12 @@
     "variables": {
         "aws_region": "us-east-1",
         "base_ami_name": "influxdb-enterprise",
-        "influx_version": "1.7.4rc0"
+        "influx_version": "1.7.4rc2"
       },
     "builders": [{
-        "name": "influxdb-ami-amazon-linux",
+        "name": "influxdb-enterprise-ami-amazon-linux-2",
         "ami_name": "{{user `base_ami_name`}}-amazon-linux-{{isotime | clean_ami_name}}",
-        "ami_description": "An Amazon Linux 2 AMI that has InfluxDB Enterprise installed.",
+        "ami_description": "An Amazon Linux 2 AMI that has InfluxDB Enterprise installed and used in the AWS Marketplace listing.",
         "instance_type": "t2.micro",
         "region": "{{user `aws_region`}}",
         "type": "amazon-ebs",
@@ -65,7 +65,9 @@
             "sudo mv /tmp/influxdb-meta.conf /etc/influxdb/influxdb-meta.conf",
             "sudo chown -R influxdb:influxdb /etc/influxdb",
             "sudo mkdir /opt/influxdb",
-            "sudo mv /tmp/setup.sh /opt/influxdb/setup.sh"
+            "sudo mv /tmp/setup.sh /opt/influxdb/setup.sh",
+            "sudo rm /home/ec2-user/.ssh/authorized_keys",
+            "sudo rm /root/.ssh/authorized_keys"
         ]
     }]
 }
