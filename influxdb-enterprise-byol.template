@@ -45,13 +45,13 @@
           "default": "VPC ID"
         },
         "Subnets": {
-          "default": "Subnets"
+          "default": "Subnets (must be in the same VPC)"
         },
         "KeyName": {
           "default": "SSH Key Name"
         },
         "SSHLocation": {
-          "default": "SSH Access CIDR"
+          "default": "SSH Access CIDR (for no restriction, use CIDR '0.0.0.0/0')"
         },
         "LicenseKey": {
           "default": "InfluxDB Enterprise License Key"
@@ -187,7 +187,7 @@
   },
   "Mappings": {
     "ClusterRegion": {
-      "us-east-1": { "BYOL": "ami-0d6e3cea98d2746ff" }
+      "us-east-1": { "BYOL": "ami-0737e6e86cb9e84ca" }
     }
   },
   "Resources": {

@@ -3,7 +3,7 @@
     "variables": {
         "aws_region": "us-east-1",
         "base_ami_name": "influxdb-enterprise",
-        "influx_version": "1.7.4"
+        "influx_version": "1.7.6"
       },
     "builders": [{
         "name": "influxdb-enterprise-ami-amazon-linux-2",
