@@ -14,23 +14,23 @@
           "SSHLocation"
         ]
       }, {
-      "Label": {
-        "default": "InfluxDB Configuration"
-      },
-      "Parameters": [
-        "LicenseKey",
-        "Username",
-        "Password"
-      ]
+        "Label": {
+          "default": "InfluxDB Configuration"
+        },
+        "Parameters": [
+          "LicenseKey",
+          "Username",
+          "Password"
+        ]
       }, {
-      "Label": {
-        "default": "InfluxDB Data Node Configuration"
-      },
-      "Parameters": [
-        "DataNodeInstanceCount",
-        "DataNodeInstanceType",
-        "DataNodeDiskSize"
-      ]
+        "Label": {
+          "default": "InfluxDB Data Node Configuration"
+        },
+        "Parameters": [
+          "DataNodeInstanceCount",
+          "DataNodeInstanceType",
+          "DataNodeDiskSize"
+        ]
       }, {
         "Label": {
           "default": "InfluxDB Meta Node Configuration"
@@ -38,6 +38,14 @@
         "Parameters": [
           "MetaNodeInstanceCount",
           "MetaNodeInstanceType"
+        ]
+      }, {
+        "Label": {
+          "default": "InfluxDB Monitor Configuration"
+        },
+        "Parameters": [
+          "CreateMonitor",
+          "MonitorInstanceType"
         ]
       }],
       "ParameterLabels": {
@@ -76,6 +84,12 @@
         },
         "MetaNodeInstanceType": {
           "default": "InfluxDB Meta Node Instance Type"
+        },
+        "CreateMonitor": {
+          "default": "Create a monitor instance"
+        },
+        "MonitorInstanceType": {
+          "default": "InfluxDB Monitor Instance Type"
         }
       }
     }
@@ -143,6 +157,24 @@
       ],
       "ConstraintDescription": "must be a valid EC2 instance type."
     },
+    "CreateMonitor": {
+      "Description": "Create a monitor instance",
+      "Type": "String",
+      "Default": "yes",
+      "AllowedValues": [
+        "yes",
+        "no"
+      ]
+    },
+    "MonitorInstanceType": {
+      "Description": "Instance type for monitoring node",
+      "Type": "String",
+      "Default": "t2.large",
+      "AllowedValues": [
+        "t2.large", "m4.large", "m4.xlarge", "m4.2xlarge"
+      ],
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    },
     "KeyName": {
       "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
       "Type": "AWS::EC2::KeyPair::KeyName",
@@ -157,27 +189,8 @@
       "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
     }
   },
-  "Rules": {
-    "SubnetsInVPC": {
-      "Assertions": [
-        {
-          "Assert": {
-            "Fn::EachMemberIn": [
-              {
-                "Fn::ValueOfAll": [
-                  "AWS::EC2::Subnet::Id",
-                  "VpcId"
-                ]
-              },
-              {
-                "Fn::RefAll": "AWS::EC2::VPC::Id"
-              }
-            ]
-          },
-          "AssertDescription": "All subnets must exist in the VPC"
-        }
-      ]
-    }
+  "Conditions": {
+    "CreateMonitorInstance": { "Fn::Equals" : [{"Ref" : "CreateMonitor"}, "yes" ] }
   },
   "Outputs": {
     "InfluxDBAPIEndpoint": {
@@ -186,8 +199,12 @@
     }
   },
   "Mappings": {
-    "ClusterRegion": {
-      "us-east-1": { "BYOL": "ami-0737e6e86cb9e84ca" }
+    "AMIRegionMap": {
+      "us-east-1": {
+        "Data": "ami-0cb6b67cba46e6f39",
+        "Meta": "ami-0737e6e86cb9e84ca",
+        "Monitor": "ami-055deb1a2303a0749"
+      }
     }
   },
   "Resources": {
@@ -213,7 +230,7 @@
     "DataNodeLaunchConfiguration": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
       "Properties": {
-        "ImageId": { "Fn::FindInMap": [ "ClusterRegion", { "Ref": "AWS::Region" }, "BYOL" ] },
+        "ImageId": { "Fn::FindInMap": [ "AMIRegionMap", { "Ref": "AWS::Region" }, "Data" ] },
         "InstanceType": { "Ref": "DataNodeInstanceType" },
         "SecurityGroups": [ { "Ref": "ClusterSecurityGroup" } ],
         "KeyName": { "Ref": "KeyName" },
@@ -281,7 +298,7 @@
     "MetaNodeLaunchConfiguration": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
       "Properties": {
-        "ImageId": { "Fn::FindInMap": [ "ClusterRegion", { "Ref": "AWS::Region" }, "BYOL" ] },
+        "ImageId": { "Fn::FindInMap": [ "AMIRegionMap", { "Ref": "AWS::Region" }, "Meta" ] },
         "InstanceType": { "Ref": "MetaNodeInstanceType" },
         "SecurityGroups": [ { "Ref": "ClusterSecurityGroup" } ],
         "KeyName": { "Ref": "KeyName" },
@@ -325,6 +342,32 @@
             ]
           }
         }
+      }
+    },
+    "MonitorInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Condition": "CreateMonitorInstance",
+      "Properties" : {
+        "ImageId": { "Fn::FindInMap": [ "AMIRegionMap", { "Ref": "AWS::Region" }, "Monitor" ] },
+        "InstanceType": { "Ref": "MonitorInstanceType" },
+        "SecurityGroups": [ { "Ref": "ClusterSecurityGroup" } ],
+        "KeyName": { "Ref": "KeyName" },
+        "IamInstanceProfile": { "Ref": "InfluxDBInstanceProfile" },
+        "BlockDeviceMappings" :
+        [
+          {
+            "DeviceName" : "/dev/xvda",
+            "Ebs" : { "DeleteOnTermination" : true }
+          },
+          {
+            "DeviceName" : "/dev/xvdh",
+            "Ebs" : {
+              "VolumeSize": 10,
+              "VolumeType": "gp2",
+              "Encrypted": true
+            }
+          }
+        ]
       }
     },
     "ApplicationLoadBalancer" : {
