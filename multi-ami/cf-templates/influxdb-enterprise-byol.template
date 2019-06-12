@@ -59,7 +59,7 @@
           "default": "SSH Key Name"
         },
         "SSHLocation": {
-          "default": "SSH Access CIDR (for no restriction, use CIDR '0.0.0.0/0')"
+          "default": "SSH Access CIDR (Public IPv4 address range of the administrator's network)"
         },
         "LicenseKey": {
           "default": "InfluxDB Enterprise License Key"
@@ -201,9 +201,9 @@
   "Mappings": {
     "AMIRegionMap": {
       "us-east-1": {
-        "Data": "ami-0cb6b67cba46e6f39",
-        "Meta": "ami-0b6e37ea61af604a2",
-        "Monitor": "ami-055deb1a2303a0749"
+        "Data": "ami-086e1e301ef89a7a7",
+        "Meta": "ami-01f4a0c2d4309c347",
+        "Monitor": "ami-09293eb6f6d59e3ed"
       }
     }
   },
