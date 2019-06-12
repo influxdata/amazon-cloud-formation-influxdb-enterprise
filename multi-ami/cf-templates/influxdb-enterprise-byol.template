@@ -202,7 +202,7 @@
     "AMIRegionMap": {
       "us-east-1": {
         "Data": "ami-0cb6b67cba46e6f39",
-        "Meta": "ami-0737e6e86cb9e84ca",
+        "Meta": "ami-0b6e37ea61af604a2",
         "Monitor": "ami-055deb1a2303a0749"
       }
     }
