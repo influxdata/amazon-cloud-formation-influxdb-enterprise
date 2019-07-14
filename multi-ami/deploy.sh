@@ -5,6 +5,15 @@
 
 # This script works for MacOS. To run on linux, swap the ssh_location command to
 # 'hostname --ip-address' or "0.0.0.0/0"
+ssh_location="unknown"
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+    ssh_location="$(hostname --ip-address)"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    ssh_location="$(dig @resolver1.opendns.com ANY myip.opendns.com +short)/32"
+else
+    echo -n "WARNING: cannot determine local IP address"
+    ssh_location="0.0.0.0/0"
+fi
 
 # By default, this script will not actually execute a deploy. Remove the
 # "--no-execute-changeset" option to create resources.

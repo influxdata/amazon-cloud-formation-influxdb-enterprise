@@ -218,6 +218,12 @@
         "DesiredCapacity": { "Ref": "DataNodeInstanceCount" },
         "TargetGroupARNs": [ { "Ref": "ALBTargetGroup" } ]
       },
+      "CreationPolicy" : {
+        "ResourceSignal" : {    
+          "Count" : { "Ref": "DataNodeInstanceCount" },
+          "Timeout" : "PT5M"
+        }
+      },
       "UpdatePolicy": {
         "AutoScalingRollingUpdate": {
           "MinInstancesInService": 1,
@@ -229,6 +235,39 @@
     },
     "DataNodeLaunchConfiguration": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "node-bootstrap": [ "config" ],
+            "cluster-init": [ "config" ]
+          },
+          "config": {
+            "packages": {
+              "rpm" : {
+                "influxdb" : "http://download.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm"
+              }
+            },
+            "groups": {
+
+            },
+            "users": {
+
+            },
+            "sources": {
+
+            },
+            "files": {
+
+            },
+            "commands": {
+
+            },
+            "services": {
+
+            }
+          }
+        }
+      },
       "Properties": {
         "ImageId": { "Fn::FindInMap": [ "AMIRegionMap", { "Ref": "AWS::Region" }, "Data" ] },
         "InstanceType": { "Ref": "DataNodeInstanceType" },
@@ -256,10 +295,15 @@
             "Fn::Join": [ "",
               [
                 "#!/usr/bin/env bash\n",
-
                 "set -euxo pipefail\n",
+                "yum install -y aws-cfn-bootstrap\n",
+                "/opt/aws/bin/cfn-signal -e 0 --stack ", { "Ref": "AWS::StackName" },
+                " --resource DataNodeLaunchConfiguration ",
+                " --region ", { "Ref": "AWS::Region" }, "\n",
 
                 "echo 'Running startup script...'\n",
+
+                "sudo hostnamectl set-hostname localdomain",
 
                 "stack_name=", { "Ref": "AWS::StackName" }, "\n",
                 "aws_region=", { "Ref": "AWS::Region" }, "\n",
@@ -462,6 +506,7 @@
         "GroupDescription" : "Allow traffic on ports for InfluxDB between nodes, and SSH from SSHLocation",
         "SecurityGroupIngress": [
           { "IpProtocol": "tcp", "FromPort": 22, "ToPort": 22, "CidrIp": { "Ref": "SSHLocation" } },
+          { "IpProtocol" : "icmp", "FromPort" : -1, "ToPort" : -1, "CidrIp" : { "Ref": "SSHLocation" } },
           { "IpProtocol": "tcp", "FromPort": 8086, "ToPort": 8086, "SourceSecurityGroupId": { "Ref": "ALBSecurityGroup" } }
         ],
         "VpcId": { "Ref": "VpcId" }
