@@ -33,35 +33,44 @@
         "commit": "true"
     }],
     "provisioners": [{
-        "type": "file",
-        "source": "{{template_dir}}/config/influxdb.conf",
-        "destination": "/tmp/influxdb.conf",
-        "direction": "upload"
-    },{
-        "type": "file",
-        "source": "{{template_dir}}/scripts/setup.sh",
-        "destination": "/tmp/setup.sh",
-        "direction": "upload"
+        "type": "shell",
+        "inline": [
+            "cloud-init status --wait",
+            "sudo yum update -y",
+            "sudo yum install git -y",
+            "git clone --branch master https://github.com/influxdata/amazon-cloud-formation-influxdb-enterprise.git"
+        ]
     },{
         "type": "shell",
         "inline": [
-            "curl https://dl.influxdata.com/enterprise/releases/influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm --output influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
-            "sudo yum -y localinstall influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
-            "sudo systemctl disable influxdb.service",
-            "rm influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
-            "sudo yum update -y",
-            "sudo mv /tmp/influxdb.conf /etc/influxdb/influxdb.conf",
+            "curl https://dl.influxdata.com/enterprise/releases/influxdb-{{user `influxdb_node_type`}}-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm --output influxdb-{{user `influxdb_node_type`}}-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
+            "sudo yum -y localinstall influxdb-{{user `influxdb_node_type`}}-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
+            "rm influxdb-{{user `influxdb_node_type`}}-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
+        ]
+    },{
+        "type": "shell",
+        "inline": [
+            "sudo systemctl disable influxdb.service"
+        ],
+        "only": ["{{user `base_ami_name`}}-{{user `listing_type`}}-data-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_ami_name}}"]
+    },{
+        "type": "shell",
+        "inline": [
+            "sudo systemctl disable influxdb-meta.service"
+        ],
+        "only": ["{{user `base_ami_name`}}-{{user `listing_type`}}-meta-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_ami_name}}"]
+    },{
+        "type": "shell",
+        "inline": [
+            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/influxdb* /etc/influxdb/",
             "sudo chown -R influxdb:influxdb /etc/influxdb",
-            "sudo mkdir /opt/influxdb",
-            "sudo mv /tmp/setup.sh /opt/influxdb/setup.sh",
-            "sudo rm /home/ec2-user/.ssh/authorized_keys",
-            "sudo rm /root/.ssh/authorized_keys"
+            "rm .ssh/authorized_keys ; sudo rm /root/.ssh/authorized_keys"
         ]
     }],
     "post-processors": [{
         "type": "docker-tag",
         "repository": "influxdata/{{user `base_ami_name`}}-{{user `listing_type`}}-{{user `influxdb_node_type`}}-{{user `influxdb_version`}}-amazon-linux-2",
         "tag": "latest",
-        "only": ["influxdb-docker-amazon-linux"]
+        "only": ["docker-{{user `base_ami_name`}}-{{user `listing_type`}}-{{user `influxdb_node_type`}}-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_ami_name}}"]
     }]
 }
