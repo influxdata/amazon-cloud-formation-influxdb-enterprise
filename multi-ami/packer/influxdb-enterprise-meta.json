@@ -1,0 +1,53 @@
+{
+    "min_packer_version": "0.12.0",
+    "variables": {
+        "aws_region": "us-east-1",
+        "base_ami_name": "influxdb-enterprise",
+        "listing_type": "billing",
+        "influxdb_version": "1.7.7"
+      },
+    "builders": [{
+        "name": "ami",
+        "ami_name": "{{user `base_ami_name`}}-{{user `listing_type`}}-meta-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_ami_name}}",
+        "ami_description": "An Amazon Linux 2 AMI that has InfluxDB Enterprise meta installed and used in the AWS Marketplace listing.",
+        "instance_type": "t2.micro",
+        "region": "{{user `aws_region`}}",
+        "type": "amazon-ebs",
+        "source_ami_filter": {
+            "filters": {
+                "virtualization-type": "hvm",
+                "architecture": "x86_64",
+                "name": "amzn2-ami-hvm-*-x86_64-gp2",
+                "block-device-mapping.volume-type": "gp2",
+                "root-device-type": "ebs"
+            },
+            "owners": ["amazon"],
+            "most_recent": true
+        },
+        "ssh_username": "ec2-user"
+    }],
+    "provisioners": [{
+        "type": "shell",
+        "inline": [
+            "sudo yum update -y -q",
+            "sudo yum install git -y -q"
+        ]
+    },{
+        "type": "shell",
+        "inline": [
+            "curl -s https://dl.influxdata.com/enterprise/releases/influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm --output influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
+            "sudo yum -y localinstall influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
+            "rm influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
+            "sudo systemctl stop influxdb-meta.service",
+            "sudo systemctl disable influxdb-meta.service",
+            "git clone --branch master https://github.com/influxdata/amazon-cloud-formation-influxdb-enterprise.git",
+            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/influxdb* /etc/influxdb/",
+            "sudo chown -R influxdb:influxdb /etc/influxdb"
+        ]
+    },{
+        "type": "shell",
+        "inline": [
+            "rm .ssh/authorized_keys ; sudo rm /root/.ssh/authorized_keys"
+        ]
+    }]
+}

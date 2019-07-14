@@ -2,13 +2,16 @@
     "min_packer_version": "0.12.0",
     "variables": {
         "aws_region": "us-east-1",
-        "base_ami_name": "influxdb-enterprise-monitor",
-        "influxdb_version": "1.7.6"
+        "base_ami_name": "influxdb-monitor",
+        "telegraf_version": "1.11.2",
+        "influxdb_version": "1.7.7",
+        "chronograf_version": "1.7.12",
+        "kapacitor_version": "1.5.3"
       },
     "builders": [{
-        "name": "influxdb-enterprise-ami-amazon-linux-2",
-        "ami_name": "{{user `base_ami_name`}}-amazon-linux-{{isotime | clean_ami_name}}",
-        "ami_description": "An Amazon Linux 2 AMI that has InfluxDB Enterprise installed and used in the AWS Marketplace listing.",
+        "name": "ami",
+        "ami_name": "{{user `base_ami_name`}}-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_ami_name}}",
+        "ami_description": "An Amazon Linux 2 AMI that has the TICK stack installed and is set up to monitor an InfluxDB Enterprise cluster deployed from the AWS Marketplace listing.",
         "instance_type": "t2.micro",
         "region": "{{user `aws_region`}}",
         "type": "amazon-ebs",
@@ -28,30 +31,60 @@
     "provisioners": [{
         "type": "shell",
         "inline": [
-            "curl https://dl.influxdata.com/influxdb/releases/influxdb-{{ user `influxdb_version` }}.x86_64.rpm --output influxdb-{{ user `influxdb_version` }}.x86_64.rpm",
-            "sudo yum -y localinstall influxdb-{{ user `influxdb_version` }}.x86_64.rpm",
-            "rm influxdb-{{ user `influxdb_version` }}.x86_64.rpm"
+            "sudo yum update -y",
+            "sudo yum install git -y"
         ]
-    },{
-        "type": "file",
-        "source": "{{template_dir}}/config/monitor/influxdb.conf",
-        "destination": "/tmp/influxdb.conf",
-        "direction": "upload"
-    },{
-        "type": "file",
-        "source": "{{template_dir}}/scripts/monitor/setup.sh",
-        "destination": "/tmp/setup.sh",
-        "direction": "upload"
     },{
         "type": "shell",
         "inline": [
-            "sudo yum -y update",
-            "sudo mv /tmp/influxdb.conf /etc/influxdb/influxdb.conf",
+            "curl -s https://dl.influxdata.com/telegraf/releases/telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm --output telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm",
+            "sudo yum -y localinstall telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm",
+            "rm telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm",
+            "sudo systemctl stop telegraf.service",
+            "sudo systemctl disable telegraf.service"
+        ]
+    },{
+        "type": "shell",
+        "inline": [
+            "curl -s https://dl.influxdata.com/influxdb/releases/influxdb-{{ user `influxdb_version` }}.x86_64.rpm --output influxdb-{{ user `influxdb_version` }}.x86_64.rpm",
+            "sudo yum -y localinstall influxdb-{{ user `influxdb_version` }}.x86_64.rpm",
+            "rm influxdb-{{ user `influxdb_version` }}.x86_64.rpm",
+            "sudo systemctl stop influxdb.service",
+            "sudo systemctl disable influxdb.service"
+        ]
+    },{
+        "type": "shell",
+        "inline": [
+            "curl -s https://dl.influxdata.com/chronograf/releases/chronograf-{{ user `chronograf_version` }}.x86_64.rpm --output chronograf-{{ user `chronograf_version` }}.x86_64.rpm",
+            "sudo yum -y localinstall chronograf-{{ user `chronograf_version` }}.x86_64.rpm",
+            "rm chronograf-{{ user `chronograf_version` }}.x86_64.rpm",
+            "sudo systemctl stop chronograf.service",
+            "sudo systemctl disable chronograf.service"
+        ]
+    },{
+        "type": "shell",
+        "inline": [
+            "curl -s https://dl.influxdata.com/kapacitor/releases/kapacitor-{{ user `kapacitor_version` }}.x86_64.rpm --output kapacitor-{{ user `kapacitor_version` }}.x86_64.rpm",
+            "sudo yum -y localinstall kapacitor-{{ user `kapacitor_version` }}.x86_64.rpm",
+            "rm kapacitor-{{ user `kapacitor_version` }}.x86_64.rpm",
+            "sudo systemctl stop kapacitor.service",
+            "sudo systemctl disable kapacitor.service"
+        ]
+    },{
+        "type": "shell",
+        "inline": [
+            "git clone --branch master https://github.com/influxdata/amazon-cloud-formation-influxdb-enterprise.git",
+            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/influxdb* /etc/influxdb/",
             "sudo chown -R influxdb:influxdb /etc/influxdb",
-            "sudo mkdir /opt/influxdb",
-            "sudo mv /tmp/setup.sh /opt/influxdb/setup.sh",
-            "sudo rm /home/ec2-user/.ssh/authorized_keys",
-            "sudo rm /root/.ssh/authorized_keys"
+            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/telegraf* /etc/telegraf/",
+            "sudo chown -R telegraf:telegraf /etc/telegraf",
+            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/kapacitor* /etc/kapacitor/",
+            "sudo chown -R kapacitor:kapacitor /etc/kapacitor"
+        ]
+    },{
+        "type": "shell",
+        "inline": [
+            "rm .ssh/authorized_keys ; sudo rm /root/.ssh/authorized_keys"
         ]
     }]
 }
