@@ -36,17 +36,13 @@
         "type": "shell",
         "inline": [
             "curl -s https://dl.influxdata.com/enterprise/releases/influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm --output influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
-            "sudo yum -q -y localinstall influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
+            "sudo yum -y -q localinstall influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
             "rm influxdb-data-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
             "sudo systemctl stop influxdb.service",
             "sudo systemctl disable influxdb.service",
             "git clone --branch ga-multi-ami https://github.com/influxdata/amazon-cloud-formation-influxdb-enterprise.git",
-            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/influxdb* /etc/influxdb/",
-            "sudo chown -R influxdb:influxdb /etc/influxdb"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
+            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/influxdb.conf /etc/influxdb/",
+            "sudo chown -R influxdb:influxdb /etc/influxdb",
             "rm .ssh/authorized_keys ; sudo rm /root/.ssh/authorized_keys"
         ]
     }]

@@ -30,23 +30,15 @@
         "type": "shell",
         "inline": [
             "sudo yum update -y -q",
-            "sudo yum install git -y -q"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
+            "sudo yum install git -y -q",
             "curl -s https://dl.influxdata.com/enterprise/releases/influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm --output influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
-            "sudo yum -y localinstall influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
+            "sudo yum -y -q localinstall influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
             "rm influxdb-meta-{{ user `influxdb_version` }}_c{{ user `influxdb_version` }}.x86_64.rpm",
             "sudo systemctl stop influxdb-meta.service",
             "sudo systemctl disable influxdb-meta.service",
-            "git clone --branch master https://github.com/influxdata/amazon-cloud-formation-influxdb-enterprise.git",
-            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/influxdb* /etc/influxdb/",
-            "sudo chown -R influxdb:influxdb /etc/influxdb"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
+            "git clone --branch ga-multi-ami https://github.com/influxdata/amazon-cloud-formation-influxdb-enterprise.git",
+            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/influxdb-meta.conf /etc/influxdb/",
+            "sudo chown -R influxdb:influxdb /etc/influxdb",
             "rm .ssh/authorized_keys ; sudo rm /root/.ssh/authorized_keys"
         ]
     }]
