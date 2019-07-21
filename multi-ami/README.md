@@ -31,3 +31,6 @@ Run the following command to build the image:
 ```sh
 packer build influxdb-ami.json
 ```
+
+
+sudo hostnamectl set-hostname localdomain

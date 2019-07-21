@@ -40,27 +40,6 @@ function get_meta_leader {
     --output text)"
 }
 
-function mount_volumes {
-  local -r device_name="/dev/xvdh"
-  local -r mount_point="/mnt/influxdb"
-
-  echo "Creating filesystem and mount point"
-  sudo mkfs -t ext4 "${device_name}"
-  sudo mkdir "${mount_point}"
-
-  echo "Updating fstab"
-  echo -e "${device_name}\t${mount_point}\text4\tdefaults,nofail\t0\t2" | sudo tee -a /etc/fstab > /dev/null
-
-  echo "Mounting volume"
-  sudo mount -a
-
-  echo "Creating directories for InfluxDB data (meta, data, wal, & hh)"
-  sudo mkdir "${mount_point}/meta" "${mount_point}/data" "${mount_point}/wal" "${mount_point}/hh"
-
-  echo "Changing permissions of mount point"
-  sudo chown -R influxdb:influxdb "${mount_point}"
-}
-
 function wait_for_asg_instances() {
   local -r region="$1"
   local -r asg_name="$2"
@@ -121,25 +100,6 @@ function run {
   local -r username="$5"
   local -r password="$6"
   local -r hostname="${HOSTNAME}"
-
-  echo "Mounting EBS Volume for meta, data, wal and hh directories"
-  mount_volumes
-
-  echo "Filling out InfluxDB config template"
-  sudo sed -i "s|PLACEHOLDER_LICENSE_KEY|${license_key}|" /etc/influxdb/influxdb-meta.conf > /dev/null
-  sudo sed -i "s|PLACEHOLDER_HOSTNAME|${hostname}|" /etc/influxdb/influxdb-meta.conf > /dev/null
-  sudo sed -i "s|PLACEHOLDER_LICENSE_KEY|${license_key}|" /etc/influxdb/influxdb.conf > /dev/null
-  sudo sed -i "s|PLACEHOLDER_HOSTNAME|${hostname}|" /etc/influxdb/influxdb.conf > /dev/null
-
-  echo "Starting InfluxDB Enterprise service"
-  if [ "${node_type}" == "meta" ]; then
-    sudo systemctl enable influxdb-meta.service
-    sudo systemctl start influxdb-meta.service
-  else
-    sudo systemctl enable influxdb.service
-    sudo systemctl start influxdb.service
-  fi
-  sleep 10
 
   local -r meta_asg_name="$(get_asg_name "${stack_name}" "${region}" "Meta")"
   local -r data_asg_name="$(get_asg_name "${stack_name}" "${region}" "Data")"

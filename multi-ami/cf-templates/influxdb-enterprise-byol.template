@@ -20,7 +20,9 @@
         "Parameters": [
           "LicenseKey",
           "Username",
-          "Password"
+          "Password",
+          "InfluxDBVersion",
+          "TelegrafVersion"
         ]
       }, {
         "Label": {
@@ -70,6 +72,12 @@
         "Password": {
           "default": "InfluxDB Administrator Password"
         },
+        "InfluxDBVersion": {
+          "default": "InfluxDB Enterprise Version"
+        },
+        "TelegrafVersion": {
+          "default": "Telegraf Version"
+        },
         "DataNodeInstanceCount": {
           "default": "InfluxDB Data Node Instance Count"
         },
@@ -118,6 +126,16 @@
       "Type": "String",
       "NoEcho": true
     },
+    "InfluxDBVersion": {
+      "Description": "Version of InfluxDB Enterprise",
+      "Type": "String",
+      "Default": "1.7.7"
+    },
+    "TelegrafVersion": {
+      "Description": "Version of Telegraf",
+      "Type": "String",
+      "Default": "1.11.2"
+    },
     "DataNodeInstanceCount": {
       "Description": "Number of data nodes",
       "Type": "Number",
@@ -126,7 +144,7 @@
     "DataNodeInstanceType": {
       "Description": "Instance type for data nodes",
       "Type": "String",
-      "Default": "m4.large",
+      "Default": "m5.large",
       "AllowedValues": [
         "m4.large", "m4.xlarge", "m4.2xlarge", "m4.4xlarge", "m4.10xlarge", "m4.16xlarge",
         "m5.large", "m5.xlarge", "m5.2xlarge", "m5.4xlarge", "m5.12xlarge", "m5.24xlarge",
@@ -238,32 +256,48 @@
       "Metadata": {
         "AWS::CloudFormation::Init": {
           "configSets": {
-            "node-bootstrap": [ "config" ],
-            "cluster-init": [ "config" ]
+            "SetupNode": [ "UpdatePackages", "SetLicenseKey" ],
+            "ConfigureHostname": [ "ConfigureHostname" ]
           },
-          "config": {
+          "Configure": {
             "packages": {
-              "rpm" : {
-                "influxdb" : "http://download.fedoraproject.org/pub/epel/5/i386/epel-release-5-4.noarch.rpm"
+              "rpm": {
+                "influxdb": { "Fn::Sub": "https://dl.influxdata.com/enterprise/releases/influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm" },
+                "telegraf": { "Fn::Sub": "https://dl.influxdata.com/telegraf/releases/telegraf-${TelegrafVersion}-1.x86_64.rpm"}
+              },
+              "yum": {
+                "git": "",
+                "awscli": ""
               }
             },
-            "groups": {
-
-            },
-            "users": {
-
-            },
-            "sources": {
-
-            },
             "files": {
-
+              "/etc/default/influxdb": {
+                "content": { "Fn::Sub": "INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}" },
+                "mode": "000644",
+                "owner": "root",
+                "group": "root"
+              }
             },
             "commands": {
-
+              "01_set_hostname": "echo -n \"INFLUXDB_HOSTNAME=$(curl --location --silent --fail --show-error http://169.254.169.254/latest/meta-data/hostname)\" >> /etc/default/influxdb",
+              "02_mount_volumes": { "Fn::Join": [ "", [
+                "mkfs -t ext4 /dev/sdf", "\n",
+                "mkdir /mnt/influxdb", "\n",
+                "mount -a", "\n",
+                "mkdir /mnt/influxdb/meta /mnt/influxdb /mnt/influxdb/wal /mnt/influxdb/hh", "\n",
+                "chown -R influxdb:influxdb /mnt/influxdb", "\n",
+                "echo -e \"/dev/sdf\t/mnt/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab", "\n"
+              ]]}
+            }
+          }
+        },
+        "StartService": {
+          "commands": {
+            "01_enable_influxdb_service": {
+              "command": "systemctl enable influxdb"
             },
-            "services": {
-
+            "02_start_influxdb_service": {
+              "command": "systemctl start influxdb"
             }
           }
         }
@@ -282,11 +316,12 @@
             "Ebs" : { "DeleteOnTermination" : true }
           },
           {
-            "DeviceName" : "/dev/xvdh",
+            "DeviceName" : "/dev/sdf",
             "Ebs" : {
               "VolumeSize": { "Ref": "DataNodeDiskSize" },
               "VolumeType": "gp2",
-              "Encrypted": true
+              "Encrypted": true,
+              "DeleteOnTermination": false
             }
           }
         ],
@@ -296,18 +331,44 @@
               [
                 "#!/usr/bin/env bash\n",
                 "set -euxo pipefail\n",
-                "yum install -y aws-cfn-bootstrap\n",
-                "/opt/aws/bin/cfn-signal -e 0 --stack ", { "Ref": "AWS::StackName" },
-                " --resource DataNodeLaunchConfiguration ",
-                " --region ", { "Ref": "AWS::Region" }, "\n",
+                "yum update -y aws-cfn-bootstrap\n",
 
-                "echo 'Running startup script...'\n",
+                "# Setup trap to ensure error signal is sent if cfn-init exits\n",
+                "trap '",
+                "/opt/aws/bin/cfn-signal -e 1",
+                "        --stack ", { "Ref" : "AWS::StackName" },
+                "        --region=", { "Ref" : "AWS::Region" },
+                "        --resource DataNodeLaunchConfiguration",
+                "' ERR\n",
+
+                "# Install the files and packages from the metadata\n",
+                "/opt/aws/bin/cfn-init -v ",
+                "        --stack ", { "Ref" : "AWS::StackName" },
+                "        --region ", { "Ref" : "AWS::Region" },
+                "        --resource DataNodeLaunchConfiguration ",
+                "        --configsets SetupNode", "\n",
+
+                "/opt/aws/bin/cfn-signal --exit-code 0 '", { "Ref": "DataNodeConfigWaitHandle" }, "'\n",
+
+                "# Fetch and set hostnames\n",
+                "/opt/aws/bin/cfn-init -v ",
+                "        --stack ", { "Ref" : "AWS::StackName" },
+                "        --region ", { "Ref" : "AWS::Region" },
+                "        --resource DataNodeLaunchConfiguration ",
+                "        --configsets ConfigureHostname", "\n",
+
+                "/opt/aws/bin/cfn-signal --exit-code 0 '", { "Ref": "DataNodeHostnameWaitHandle" }, "'\n",
+
+                "# Signal the status from cfn-init\n",
+                "/opt/aws/bin/cfn-signal -e $? ",
+                "        --stack ", { "Ref" : "AWS::StackName" },
+                "        --region ", { "Ref" : "AWS::Region" },
+                "        --resource DataNodeLaunchConfiguration", "\n",
 
                 "sudo hostnamectl set-hostname localdomain",
 
                 "stack_name=", { "Ref": "AWS::StackName" }, "\n",
                 "aws_region=", { "Ref": "AWS::Region" }, "\n",
-                "license_key=", { "Ref": "LicenseKey" }, "\n",
                 "node_type=\"data\"\n",
                 "username=", { "Ref": "Username" }, "\n",
                 "password=", { "Ref": "Password" }, "\n",
@@ -330,6 +391,12 @@
         "MaxSize": "3",
         "DesiredCapacity": { "Ref": "MetaNodeInstanceCount" }
       },
+      "CreationPolicy" : {
+        "ResourceSignal" : {    
+          "Count" : { "Ref": "MetaNodeInstanceCount" },
+          "Timeout" : "PT5M"
+        }
+      },
       "UpdatePolicy": {
         "AutoScalingRollingUpdate": {
           "MinInstancesInService": 2,
@@ -339,8 +406,69 @@
         }
       }
     },
+    "MetaNodeWaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : {}
+    },
+    "MetaNodeWaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : "MetaNodeAutoScalingGroup",
+      "Properties" : {
+        "Count": { "Ref": "MetaNodeInstanceCount" },
+        "Handle" : { "Ref" : "MetaNodeWaitHandle" },
+        "Timeout" : "300"
+      }
+    },
     "MetaNodeLaunchConfiguration": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Metadata": {
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "node-bootstrap": [ "Configure", "StartService" ]
+          },
+          "Configure": {
+            "packages": {
+              "rpm": {
+                "influxdb": { "Fn::Sub": "https://dl.influxdata.com/enterprise/releases/influxdb-meta-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm" },
+                "telegraf": { "Fn::Sub": "https://dl.influxdata.com/telegraf/releases/telegraf-${TelegrafVersion}-1.x86_64.rpm"}
+              },
+              "yum": {
+                "git": "",
+                "awscli": ""
+              }
+            },
+            "files": {
+              "/etc/default/influxdb": {
+                "content": { "Fn::Sub": "INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}" },
+                "mode": "000644",
+                "owner": "root",
+                "group": "root"
+              }
+            },
+            "commands": {
+              "01_set_hostname": "echo -n \"INFLUXDB_HOSTNAME=$(curl --location --silent --fail --show-error http://169.254.169.254/latest/meta-data/hostname)\" >> /etc/default/influxdb",
+              "02_mount_volumes": { "Fn::Join": [ "", [
+                "mkfs -t ext4 /dev/xvdh", "\n",
+                "mkdir /mnt/influxdb", "\n",
+                "mount -a", "\n",
+                "mkdir /mnt/influxdb/meta /mnt/influxdb /mnt/influxdb/wal /mnt/influxdb/hh", "\n",
+                "chown -R influxdb:influxdb /mnt/influxdb", "\n",
+                "echo -e \"/dev/xvdh\t/mnt/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab", "\n"
+              ]]}
+            }
+          }
+        },
+        "StartService": {
+          "commands": {
+            "01_enable_influxdb_service": {
+              "command": "systemctl enable influxdb-meta.service"
+            },
+            "02_start_influxdb_service": {
+              "command": "systemctl start influxdb-meta.service"
+            }
+          }
+        }
+      },
       "Properties": {
         "ImageId": { "Fn::FindInMap": [ "AMIRegionMap", { "Ref": "AWS::Region" }, "Meta" ] },
         "InstanceType": { "Ref": "MetaNodeInstanceType" },
@@ -358,7 +486,8 @@
             "Ebs" : {
               "VolumeSize": 10,
               "VolumeType": "gp2",
-              "Encrypted": true
+              "Encrypted": true,
+              "DeleteOnTermination": false
             }
           }
         ],
@@ -388,6 +517,71 @@
         }
       }
     },
+    "DataNodeConfigWaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : {}
+    },
+    "DataNodeConfigWaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : [ "DataNodeAutoScalingGroup" ],
+      "Properties" : {
+        "Count": { "Ref": "DataNodeInstanceCount" },
+        "Handle" : { "Ref" : "DataNodeConfigWaitHandle" },
+        "Timeout" : "300"
+      }
+    },
+    "MetaNodeConfigWaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : {}
+    },
+    "MetaNodeConfigWaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : [ "MetaNodeAutoScalingGroup" ],
+      "Properties" : {
+        "Count": { "Ref": "MetaNodeInstanceCount" },
+        "Handle" : { "Ref" : "MetaNodeConfigWaitHandle" },
+        "Timeout" : "300"
+      }
+    },
+    "DataNodeHostnameWaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : {}
+    },
+    "DataNodeHostnameWaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : [ "DataNodeAutoScalingGroup" ],
+      "Properties" : {
+        "Count": { "Ref": "DataNodeInstanceCount" },
+        "Handle" : { "Ref" : "DataNodeHostnameWaitHandle" },
+        "Timeout" : "300"
+      }
+    },
+    "MetaNodeHostnameWaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : {}
+    },
+    "MetaNodeHostnameWaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : [ "MetaNodeAutoScalingGroup" ],
+      "Properties" : {
+        "Count": { "Ref": "MetaNodeInstanceCount" },
+        "Handle" : { "Ref" : "MetaNodeHostnameWaitHandle" },
+        "Timeout" : "300"
+      }
+    },
+    "ClusterInitWaitHandle" : {
+      "Type" : "AWS::CloudFormation::WaitConditionHandle",
+      "Properties" : {}
+    },
+    "ClusterInitWaitCondition" : {
+      "Type" : "AWS::CloudFormation::WaitCondition",
+      "DependsOn" : [ "MetaNodeAutoScalingGroup" ],
+      "Properties" : {
+        "Count": 1,
+        "Handle" : { "Ref" : "ClusterInitWaitHandle" },
+        "Timeout" : "300"
+      }
+    },
     "MonitorInstance" : {
       "Type" : "AWS::EC2::Instance",
       "Condition": "CreateMonitorInstance",
@@ -408,7 +602,8 @@
             "Ebs" : {
               "VolumeSize": 10,
               "VolumeType": "gp2",
-              "Encrypted": true
+              "Encrypted": true,
+              "DeleteOnTermination": false
             }
           }
         ]
