@@ -228,7 +228,11 @@
                                     [
                                         "# If network interface is not attached to this instance, then attach it\n",
                                         "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )\n",
-                                        "ENI_STATUS=$( aws ec2 describe-network-interfaces",
+                                        "STATUS=$( aws ec2 describe-network-interfaces",
+                                        "        --region ",
+                                        {
+                                            "Ref": "AWS::Region"
+                                        },
                                         "        --network-interface-ids ",
                                         {
                                             "Ref": "DataNodeEniOne"
@@ -236,9 +240,14 @@
                                         "        --filters \"Name=attachment.instance-id,Values=$INSTANCE_ID\"",
                                         "        --query \"NetworkInterfaces[0].Attachment.Status\"",
                                         "        --output text )\n",
-                                        "if [ $ENI_STATUS != 'attached' ]; then\n",
+                                        "# TODO: switch to until 'attached' loop\n",
+                                        "if [ $STATUS != 'attached' ]; then\n",
                                         "# Wait until network interface is available\n",
                                         "aws ec2 wait network-interface-available --network-interface-ids ",
+                                        "        --region ",
+                                        {
+                                            "Ref": "AWS::Region"
+                                        },
                                         {
                                             "Ref": "DataNodeEniOne"
                                         },
@@ -268,7 +277,44 @@
                                 "Fn::Join": [
                                     "",
                                     [
-                                        "aws ec2 wait volume-available "
+                                        "# If EBS volume is not attached to this instance, then attach it\n",
+                                        "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )\n",
+                                        "STATUS=$( aws ec2 describe-volumes",
+                                        "        --region ",
+                                        {
+                                            "Ref": "AWS::Region"
+                                        },
+                                        "        --volume-ids ",
+                                        {
+                                            "Ref": "DataNodeVolumeOne"
+                                        },
+                                        "        --filters \"Name=attachment.instance-id,Values=$INSTANCE_ID\"",
+                                        "        --query \"Volumes[0].Attachments[0].State\"",
+                                        "        --output text )\n",
+                                        "# TODO: switch to until 'attached' loop\n",
+                                        "if [ $STATUS != 'attached' ]; then\n",
+                                        "# Wait until network interface is available\n",
+                                        "aws ec2 wait volume-available --volume-ids ",
+                                        "        --region ",
+                                        {
+                                            "Ref": "AWS::Region"
+                                        },
+                                        {
+                                            "Ref": "DataNodeVolumeOne"
+                                        },
+                                        "\n",
+                                        "aws ec2 attach-volume",
+                                        "        --region ",
+                                        {
+                                            "Ref": "AWS::Region"
+                                        },
+                                        "        --volume-id ",
+                                        {
+                                            "Ref": "DataNodeVolumeOne"
+                                        },
+                                        "        --instance-id $INSTANCE_ID",
+                                        "        --device /dev/xvdh\n",
+                                        "fi\n"
                                     ]
                                 ]
                             }
@@ -280,17 +326,30 @@
                                 "Fn::Join": [
                                     "",
                                     [
+                                        "if [ \"$(lsblk -no FSTYPE /dev/xvdh)\" == \"ext4\" ]; then",
+                                        "\n",
                                         "mkfs -t ext4 /dev/xvdh",
                                         "\n",
-                                        "mkdir /mnt/influxdb",
+                                        "fi",
                                         "\n",
-                                        "mount -a",
+                                        "mkdir /influxdb",
                                         "\n",
-                                        "mkdir /mnt/influxdb/meta /mnt/influxdb /mnt/influxdb/wal /mnt/influxdb/hh",
+                                        "mount /dev/xvdh /influxdb",
                                         "\n",
-                                        "chown -R influxdb:influxdb /mnt/influxdb",
+                                        "mkdir /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                         "\n",
-                                        "echo -e \"/dev/xvdh\t/mnt/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                        "chown -R influxdb:influxdb /influxdb",
+                                        "\n"
+                                    ]
+                                ]
+                            },
+                            "02_set_fstab": {
+                                "Fn::Join": [
+                                    "",
+                                    [
+                                        "cp /etc/fstab /etc/fstab.original",
+                                        "\n",
+                                        "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
                                         "\n"
                                     ]
                                 ]
@@ -570,15 +629,15 @@
                                     [
                                         "mkfs -t ext4 /dev/xvdh",
                                         "\n",
-                                        "mkdir /mnt/influxdb",
+                                        "mkdir /influxdb",
                                         "\n",
                                         "mount -a",
                                         "\n",
-                                        "mkdir /mnt/influxdb/meta /mnt/influxdb /mnt/influxdb/wal /mnt/influxdb/hh",
+                                        "mkdir /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                         "\n",
-                                        "chown -R influxdb:influxdb /mnt/influxdb",
+                                        "chown -R influxdb:influxdb /influxdb",
                                         "\n",
-                                        "echo -e \"/dev/xvdh\t/mnt/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                        "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
                                         "\n"
                                     ]
                                 ]
