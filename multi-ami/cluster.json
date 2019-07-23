@@ -23,24 +23,8 @@
                         "Username",
                         "Password",
                         "InfluxDBVersion",
-                        "TelegrafVersion"
-                    ]
-                },
-                {
-                    "Label": {
-                        "default": "InfluxDB Data Node Configuration"
-                    },
-                    "Parameters": [
-                        "DataNodeInstanceType",
+                        "TelegrafVersion",
                         "DataNodeDiskSize"
-                    ]
-                },
-                {
-                    "Label": {
-                        "default": "InfluxDB Meta Node Configuration"
-                    },
-                    "Parameters": [
-                        "MetaNodeInstanceType"
                     ]
                 }
             ],
@@ -77,6 +61,9 @@
                 },
                 "MetaNodeInstanceType": {
                     "default": "InfluxDB Meta Node Instance Type"
+                },
+                "MonitorInstanceType": {
+                    "default": "InfluxDB Monitor Instance Type"
                 }
             }
         }
@@ -118,30 +105,34 @@
         "DataNodeInstanceType": {
             "Description": "Instance type for data nodes",
             "Type": "String",
-            "Default": "m5.large",
+            "Default": "m5.4xlarge",
             "AllowedValues": [
-                "m5.large",
-                "m5.xlarge",
-                "m5.2xlarge",
-                "m5.4xlarge",
-                "m5.12xlarge",
-                "m5.24xlarge"
+                "m5.4xlarge"
             ],
             "ConstraintDescription": "must be a valid EC2 instance type."
         },
         "DataNodeDiskSize": {
-            "Description": "Size in GB of the EBS gp2 volume on each data node",
+            "Description": "Size in GB of the EBS io1 volume on each data node",
             "Type": "Number",
-            "Default": 100
+            "Default": 250
         },
         "MetaNodeInstanceType": {
             "Description": "Instance type for meta nodes",
             "Type": "String",
-            "Default": "t2.small",
+            "Default": "t3.small",
             "AllowedValues": [
-                "t2.small",
-                "t2.medium",
-                "t2.large"
+                "t3.small",
+                "t3.medium",
+                "t3.large"
+            ],
+            "ConstraintDescription": "must be a valid EC2 instance type."
+        },
+        "MonitorInstanceType": {
+            "Description": "Instance type for monitoring node",
+            "Type": "String",
+            "Default": "t3.large",
+            "AllowedValues": [
+                "t3.large"
             ],
             "ConstraintDescription": "must be a valid EC2 instance type."
         },
@@ -463,6 +454,7 @@
                             "SetAWSCLIRegion",
                             "SetLicense",
                             "SetHostnames",
+                            "SetMonitor",
                             "AttachNetwork",
                             "AttachVolume",
                             "MountVolume",
@@ -516,6 +508,28 @@
                             },
                             "02_set_influxdb_hostname": {
                                 "command": "echo \"INFLUXDB_HOSTNAME=$HOSTNAME\" >> /etc/default/influxdb"
+                            }
+                        }
+                    },
+                    "SetMonitor": {
+                        "files": {
+                            "/etc/default/telegraf": {
+                                "contents": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "MONITOR_HOSTNAME=", { "Ref": "MonitorDns"},
+                                            "\n",
+                                            "MONITOR_USERNAME=", { "Ref": "Username"},
+                                            "\n",
+                                            "MONITOR_PASSWORK=", { "Ref": "Password"},
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "mode": "000644",
+                                "owner": "root",
+                                "group": "root"
                             }
                         }
                     },
@@ -627,6 +641,8 @@
                                             "mkdir /influxdb",
                                             "\n",
                                             "mount /dev/xvdh /influxdb",
+                                            "\n",
+                                            "/sbin/resize2fs /dev/xvdh",
                                             "\n",
                                             "mkdir /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
@@ -924,7 +940,7 @@
                 "VolumeType": "gp2",
                 "Encrypted": true
             },
-            "DeletionPolicy": "Retain"
+            "DeletionPolicy": "Snapshot"
         },
         "MetaNodeAutoScalingGroup00": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
@@ -1039,7 +1055,7 @@
                 "VolumeType": "gp2",
                 "Encrypted": true
             },
-            "DeletionPolicy": "Retain"
+            "DeletionPolicy": "Snapshot"
         },
         "MetaNodeAutoScalingGroup01": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
@@ -1154,7 +1170,7 @@
                 "VolumeType": "gp2",
                 "Encrypted": true
             },
-            "DeletionPolicy": "Retain"
+            "DeletionPolicy": "Snapshot"
         },
         "MetaNodeAutoScalingGroup02": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
@@ -1226,14 +1242,14 @@
                             "SetAWSCLIRegion",
                             "SetLicense",
                             "SetHostnames",
+                            "SetMonitor",
                             "AttachNetwork",
                             "AttachVolume",
                             "MountVolume",
                             "UpdateInfluxDB",
                             "UpdateTelegraf",
                             "StartInfluxDB",
-                            "StartTelegraf",
-                            "ConfigureCluster"
+                            "StartTelegraf"
                         ]
                     },
                     "SetAWSCLIRegion": {
@@ -1279,6 +1295,28 @@
                             },
                             "02_set_influxdb_hostname": {
                                 "command": "echo \"INFLUXDB_HOSTNAME=$HOSTNAME\" >> /etc/default/influxdb"
+                            }
+                        }
+                    },
+                    "SetMonitor": {
+                        "files": {
+                            "/etc/default/telegraf": {
+                                "contents": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "MONITOR_HOSTNAME=", { "Ref": "MonitorDns"},
+                                            "\n",
+                                            "MONITOR_USERNAME=", { "Ref": "Username"},
+                                            "\n",
+                                            "MONITOR_PASSWORK=", { "Ref": "Password"},
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "mode": "000644",
+                                "owner": "root",
+                                "group": "root"
                             }
                         }
                     },
@@ -1391,6 +1429,8 @@
                                             "\n",
                                             "mount /dev/xvdh /influxdb",
                                             "\n",
+                                            "/sbin/resize2fs /dev/xvdh",
+                                            "\n",
                                             "mkdir /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
                                             "chown -R influxdb:influxdb /influxdb",
@@ -1469,94 +1509,6 @@
                             },
                             "02_start_telegraf_service": {
                                 "command": "systemctl start telegraf"
-                            }
-                        }
-                    },
-                    "ConfigureCluster": {
-                        "commands": {
-                            "01_join_nodes": {
-                                "command": {
-                                    "Fn::Join": [
-                                        "",
-                                        [
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
-                                            "\n",
-                                            "LEADER=$( aws ec2 describe-tags",
-                                            "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
-                                            "        --query \"Tags[?Key=='influxdb-leader'].Value\"",
-                                            "        --output text )",
-                                            "\n",
-                                            "if [ $LEADER == 'true' ]; then",
-                                            "\n",
-                                            "influxd-ctl add-meta ",
-                                            {
-                                                "Ref": "MetaNodeDns00"
-                                            },
-                                            ":8091",
-                                            "\n",
-                                            "influxd-ctl add-meta ",
-                                            {
-                                                "Ref": "MetaNodeDns01"
-                                            },
-                                            ":8091",
-                                            "\n",
-                                            "influxd-ctl add-meta ",
-                                            {
-                                                "Ref": "MetaNodeDns02"
-                                            },
-                                            ":8091",
-                                            "\n",
-                                            "influxd-ctl add-data ",
-                                            {
-                                                "Ref": "DataNodeDns03"
-                                            },
-                                            ":8088",
-                                            "\n",
-                                            "influxd-ctl add-data ",
-                                            {
-                                                "Ref": "DataNodeDns04"
-                                            },
-                                            ":8088",
-                                            "\n",
-                                            "fi",
-                                            "\n"
-                                        ]
-                                    ]
-                                }
-                            },
-                            "02_create_influxdb_user": {
-                                "command": {
-                                    "Fn::Join": [
-                                        "",
-                                        [
-                                            "curl -s -u ",
-                                            {
-                                                "Ref": "Username"
-                                            },
-                                            ":",
-                                            {
-                                                "Ref": "Password"
-                                            },
-                                            " \"http://",
-                                            {
-                                                "Ref": "InfluxDBLoadBalancerDns"
-                                            },
-                                            ":8086/query\"",
-                                            "        --data-urlencode 'q=\"",
-                                            "CREATE USER ",
-                                            {
-                                                "Ref": "Username"
-                                            },
-                                            " WITH PASSWORD '",
-                                            {
-                                                "Ref": "Password"
-                                            },
-                                            "' WITH ALL PRIVILEGES",
-                                            "\"'",
-                                            "\n"
-                                        ]
-                                    ]
-                                }
                             }
                         }
                     }
@@ -1686,10 +1638,11 @@
                 "Size": {
                     "Ref": "DataNodeDiskSize"
                 },
-                "VolumeType": "gp2",
+                "VolumeType": "io1",
+                "Iops": 1000,
                 "Encrypted": true
             },
-            "DeletionPolicy": "Retain"
+            "DeletionPolicy": "Snapshot"
         },
         "DataNodeAutoScalingGroup03": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
@@ -1803,10 +1756,11 @@
                 "Size": {
                     "Ref": "DataNodeDiskSize"
                 },
-                "VolumeType": "gp2",
+                "VolumeType": "io1",
+                "Iops": 1000,
                 "Encrypted": true
             },
-            "DeletionPolicy": "Retain"
+            "DeletionPolicy": "Snapshot"
         },
         "DataNodeAutoScalingGroup04": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
@@ -1849,6 +1803,527 @@
                         "Key": "influxdb-hostname",
                         "Value": {
                             "Ref": "DataNodeDns04"
+                        },
+                        "PropagateAtLaunch": true
+                    }
+                ]
+            },
+            "CreationPolicy": {
+                "ResourceSignal": {
+                    "Count": "1",
+                    "Timeout": "PT10M"
+                }
+            },
+            "UpdatePolicy": {
+                "AutoScalingRollingUpdate": {
+                    "MinInstancesInService": 0,
+                    "MaxBatchSize": 1,
+                    "PauseTime": "PT10M",
+                    "WaitOnResourceSignals": true
+                }
+            }
+        },
+        "MonitorLaunchConfiguration": {
+            "Type": "AWS::AutoScaling::LaunchConfiguration",
+            "Metadata": {
+                "AWS::CloudFormation::Init": {
+                    "configSets": {
+                        "SetupNode": [
+                            "SetAWSCLIRegion",
+                            "SetHostnames",
+                            "SetMonitor",
+                            "AttachNetwork",
+                            "AttachVolume",
+                            "MountVolume",
+                            "UpdateInfluxDB",
+                            "UpdateTelegraf",
+                            "StartInfluxDB",
+                            "StartTelegraf",
+                            "StartChronograf",
+                            "StartKapacitor",
+                            "ConfigureCluster"
+                        ]
+                    },
+                    "SetAWSCLIRegion": {
+                        "files": {
+                            "/root/.aws/config": {
+                                "content": {
+                                    "Fn::Sub": "[default]\nregion = ${AWS::Region}\n"
+                                },
+                                "mode": "000644",
+                                "owner": "root",
+                                "group": "root"
+                            }
+                        }
+                    },
+                    "SetHostnames": {
+                        "commands": {
+                            "01_set_instance_hostname": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "INFLUXDB_HOSTNAME=$( aws ec2 describe-tags",
+                                            "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
+                                            "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
+                                            "        --output text )",
+                                            "\n",
+                                            "hostnamectl set-hostname $INFLUXDB_HOSTNAME",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "02_set_influxdb_hostname": {
+                                "command": "echo \"INFLUXDB_HOSTNAME=$HOSTNAME\" >> /etc/default/influxdb"
+                            }
+                        }
+                    },
+                    "SetMonitor": {
+                        "files": {
+                            "/etc/default/telegraf": {
+                                "contents": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "MONITOR_HOSTNAME=", { "Ref": "MonitorDns"},
+                                            "\n",
+                                            "MONITOR_USERNAME=", { "Ref": "Username"},
+                                            "\n",
+                                            "MONITOR_PASSWORK=", { "Ref": "Password"},
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "mode": "000644",
+                                "owner": "root",
+                                "group": "root"
+                            }
+                        }
+                    },
+                    "AttachNetwork": {
+                        "commands": {
+                            "01_attach_network": {
+                                "command": {
+                                    "Fn:Join": [
+                                        "",
+                                        [
+                                            "# If network interface is not attached to this instance, then attach it",
+                                            "\n",
+                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "\n",
+                                            "ENI_ID=$( aws ec2 describe-tags",
+                                            "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
+                                            "        --query \"Tags[?Key=='influxdb-eni'].Value\"",
+                                            "        --output text )",
+                                            "\n",
+                                            "STATUS=$( aws ec2 describe-network-interfaces",
+                                            "        --network-interface-ids $ENI_ID",
+                                            "        --filters \"Name=attachment.instance-id,Values=$INSTANCE_ID\"",
+                                            "        --query \"NetworkInterfaces[0].Attachment.Status\"",
+                                            "        --output text )",
+                                            "\n",
+                                            "# TODO: switch to until 'attached' loop",
+                                            "\n",
+                                            "if [ $STATUS != 'attached' ]; then",
+                                            "\n",
+                                            "# Wait until network interface is available",
+                                            "\n",
+                                            "aws ec2 wait network-interface-available",
+                                            "        --network-interface-ids $ENI_ID",
+                                            "\n",
+                                            "aws ec2 attach-network-interface",
+                                            "        --network-interface-id $ENI_ID",
+                                            "        --instance-id $INSTANCE_ID",
+                                            "        --device-index 1",
+                                            "\n",
+                                            "# Reload network to automatically enable eth1 via Amazon Linux 2 ec2-net-utils",
+                                            "\n",
+                                            "systemctl restart network",
+                                            "\n",
+                                            "fi",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "AttachVolume": {
+                        "commands": {
+                            "01_attach_volume": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "# If EBS volume is not attached to this instance, then attach it",
+                                            "\n",
+                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "\n",
+                                            "VOLUME_ID=$( aws ec2 describe-tags",
+                                            "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
+                                            "        --query \"Tags[?Key=='influxdb-volume'].Value\"",
+                                            "        --output text )",
+                                            "\n",
+                                            "STATUS=$( aws ec2 describe-volumes",
+                                            "        --volume-ids $VOLUME_ID",
+                                            "        --filters \"Name=attachment.instance-id,Values=$INSTANCE_ID\"",
+                                            "        --query \"Volumes[0].Attachments[0].State\"",
+                                            "        --output text )",
+                                            "\n",
+                                            "# TODO: switch to until 'attached' loop",
+                                            "\n",
+                                            "if [ $STATUS != 'attached' ]; then",
+                                            "\n",
+                                            "# Wait until network interface is available",
+                                            "\n",
+                                            "aws ec2 wait volume-available",
+                                            "        --volume-ids $VOLUME_ID",
+                                            "\n",
+                                            "aws ec2 attach-volume",
+                                            "        --volume-id $VOLUME_ID",
+                                            "        --instance-id $INSTANCE_ID",
+                                            "        --device /dev/xvdh",
+                                            "\n",
+                                            "fi",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "MountVolume": {
+                        "commands": {
+                            "01_mount_volumes": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "if [ \"$(lsblk -no FSTYPE /dev/xvdh)\" == \"ext4\" ]; then",
+                                            "\n",
+                                            "mkfs -t ext4 /dev/xvdh",
+                                            "\n",
+                                            "fi",
+                                            "\n",
+                                            "mkdir /influxdb",
+                                            "\n",
+                                            "mount /dev/xvdh /influxdb",
+                                            "\n",
+                                            "/sbin/resize2fs /dev/xvdh",
+                                            "\n",
+                                            "mkdir /influxdb/meta /influxdb /influxdb/wal /influxdb/hh /influxdb/kapacitor",
+                                            "\n",
+                                            "chown -R influxdb:influxdb /influxdb",
+                                            "\n",
+                                            "chown -R kapacitor:kapacitor /influxdb/kapacitor",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "02_set_fstab": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "cp /etc/fstab /etc/fstab.original",
+                                            "\n",
+                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "UpdateInfluxDB": {
+                        "commands": {
+                            "01_download_influxdb": {
+                                "command": {
+                                    "Fn::Sub": "curl -s https://dl.influxdata.com/enterprise/releases/influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm --output influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                }
+                            },
+                            "02_install_influxdb": {
+                                "command": {
+                                    "Fn::Sub": "yum localinstall -y -q influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                }
+                            },
+                            "03_remove_package_file": {
+                                "command": {
+                                    "Fn::Sub": "rm influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                }
+                            }
+                        }
+                    },
+                    "UpdateTelegraf": {
+                        "commands": {
+                            "01_download_telegraf": {
+                                "command": {
+                                    "Fn::Sub": "curl -s https://dl.influxdata.com/telegraf/releases/telegraf-${TelegrafVersion}-1.x86_64.rpm --output telegraf-${TelegrafVersion}-1.x86_64.rpm"
+                                }
+                            },
+                            "02_install_telegraf": {
+                                "command": {
+                                    "Fn::Sub": "yum localinstall -y -q telegraf-${TelegrafVersion}-1.x86_64.rpm"
+                                }
+                            },
+                            "03_remove_package_file": {
+                                "command": {
+                                    "Fn::Sub": "rm telegraf-${TelegrafVersion}-1.x86_64.rpm"
+                                }
+                            }
+                        }
+                    },
+                    "StartInfluxDB": {
+                        "commands": {
+                            "01_enable_influxdb_service": {
+                                "command": "systemctl enable influxdb"
+                            },
+                            "02_start_influxdb_service": {
+                                "command": "systemctl start influxdb"
+                            }
+                        }
+                    },
+                    "StartTelegraf": {
+                        "commands": {
+                            "01_enable_telegraf_service": {
+                                "command": "systemctl enable telegraf"
+                            },
+                            "02_start_telegraf_service": {
+                                "command": "systemctl start telegraf"
+                            }
+                        }
+                    },
+                    "StartChronograf": {
+                        "commands": {
+                            "01_enable_chronograf_service": {
+                                "command": "systemctl enable chronograf"
+                            },
+                            "02_start_chronograf_service": {
+                                "command": "systemctl start chronograf"
+                            }
+                        }
+                    },
+                    "StartKapacitor": {
+                        "commands": {
+                            "01_enable_kapacitor_service": {
+                                "command": "systemctl enable kapacitor"
+                            },
+                            "02_start_kapacitor_service": {
+                                "command": "systemctl start kapacitor"
+                            }
+                        }
+                    },
+                    "ConfigureCluster": {
+                        "commands": {
+                            "01_create_influxdb_user": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "curl -s -u ",
+                                            {
+                                                "Ref": "Username"
+                                            },
+                                            ":",
+                                            {
+                                                "Ref": "Password"
+                                            },
+                                            " \"http://",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
+                                            ":8086/query\"",
+                                            "        --data-urlencode 'q=\"",
+                                            "CREATE USER ",
+                                            {
+                                                "Ref": "Username"
+                                            },
+                                            " WITH PASSWORD '",
+                                            {
+                                                "Ref": "Password"
+                                            },
+                                            "' WITH ALL PRIVILEGES",
+                                            "\"'",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AMIRegionMap",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Data"
+                    ]
+                },
+                "InstanceType": {
+                    "Ref": "MonitorInstanceType"
+                },
+                "SecurityGroups": [
+                    {
+                        "Ref": "SshSecurityGroup"
+                    },
+                    {
+                        "Ref": "InfluxDBInternalSecurityGroup"
+                    }
+                ],
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "EbsOptimized": true,
+                "IamInstanceProfile": {
+                    "Ref": "InfluxDBInstanceProfile"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/usr/bin/env bash\n",
+                                "set -euxo pipefail\n",
+                                "yum update -y aws-cfn-bootstrap ec2-net-utils\n",
+                                "/opt/aws/bin/cfn-init -v ",
+                                "        --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                "        --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "        --resource MonitorLaunchConfiguration ",
+                                "        --configsets SetupNode",
+                                "\n",
+                                "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                "\n",
+                                "ASG_NAME=$( aws ec2 describe-tags",
+                                "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
+                                "        --query \"Tags[?Key=='aws:autoscaling:groupName'].Value\"",
+                                "        --output text )",
+                                "\n",
+                                "# Signal the status from cfn-init\n",
+                                "/opt/aws/bin/cfn-signal -e $? ",
+                                "        --stack ",
+                                {
+                                    "Ref": "AWS::StackName"
+                                },
+                                "        --region ",
+                                {
+                                    "Ref": "AWS::Region"
+                                },
+                                "        --resource $ASG_NAME",
+                                "\n"
+                            ]
+                        ]
+                    }
+                }
+            }
+        },
+        "MonitorEni": {
+            "Type": "AWS::EC2::NetworkInterface",
+            "Properties": {
+                "Description": "ENI for data node one ASG",
+                "GroupSet": [
+                    {
+                        "Ref": "InfluxDBInternalSecurityGroup"
+                    }
+                ],
+                "SubnetId": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Ref": "Subnets"
+                        }
+                    ]
+                }
+            }
+        },
+        "MonitorDns": {
+            "Type": "AWS::Route53::RecordSet",
+            "Properties": {
+                "ResourceRecords": [
+                    {
+                        "Fn::GetAtt": [
+                            "MonitorEni",
+                            "PrimaryPrivateIpAddress"
+                        ]
+                    }
+                ],
+                "HostedZoneId": {
+                    "Ref": "InfluxDBPrivateHostedZone"
+                },
+                "Name": "monitor.influxdb.internal",
+                "Type": "A"
+            }
+        },
+        "MonitorVolume": {
+            "Type": "AWS::EC2::Volume",
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Ref": "AvailabilityZones"
+                        }
+                    ]
+                },
+                "Size": 50,
+                "VolumeType": "gp2",
+                "Encrypted": true
+            },
+            "DeletionPolicy": "Snapshot"
+        },
+        "MonitorAutoScalingGroup": {
+            "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "Properties": {
+                "VPCZoneIdentifier": {
+                    "Fn::Select": [
+                        2,
+                        {
+                            "Ref": "Subnets"
+                        }
+                    ]
+                },
+                "LaunchConfigurationName": {
+                    "Ref": "MonitorLaunchConfiguration"
+                },
+                "DesiredCapacity": "1",
+                "MinSize": "0",
+                "MaxSize": "1",
+                "TargetGroupARNs": [
+                    {
+                        "Ref": "InfluxDBLoadBalancerTargetGroup"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "influxdb-eni",
+                        "Value": {
+                            "Ref": "MonitorEni"
+                        },
+                        "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "influxdb-volume",
+                        "Value": {
+                            "Ref": "MonitorVolume"
+                        },
+                        "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "influxdb-hostname",
+                        "Value": {
+                            "Ref": "MonitorDns"
                         },
                         "PropagateAtLaunch": true
                     }
