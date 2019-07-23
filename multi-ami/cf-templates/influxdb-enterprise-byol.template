@@ -24,7 +24,8 @@
                         "Password",
                         "InfluxDBVersion",
                         "TelegrafVersion",
-                        "DataNodeDiskSize"
+                        "DataNodeDiskSize",
+                        "DataNodeDiskIops"
                     ]
                 }
             ],
@@ -58,6 +59,9 @@
                 },
                 "DataNodeDiskSize": {
                     "default": "InfluxDB Data Node Disk Size"
+                },
+                "DataNodeDiskIops": {
+                  "default": "InfluxDB Data Node Disk IOPS"
                 },
                 "MetaNodeInstanceType": {
                     "default": "InfluxDB Meta Node Instance Type"
@@ -118,6 +122,11 @@
             "Description": "Size in GB of the EBS io1 volume on each data node",
             "Type": "Number",
             "Default": 250
+        },
+        "DataNodeDiskIops": {
+          "Description": "IOPS of the EBS io1 volume on each data node",
+          "Type": "Number",
+          "Default": 1000
         },
         "MetaNodeInstanceType": {
             "Description": "Instance type for meta nodes",
@@ -1285,7 +1294,7 @@
                     "SetLicense": {
                         "files": {
                             "/etc/default/influxdb": {
-                                "contents": "INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws",
+                                "contents": { "Fn::Sub": "INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}" },
                                 "mode": "000644",
                                 "owner": "root",
                                 "group": "root"
@@ -1666,7 +1675,7 @@
                     "Ref": "DataNodeDiskSize"
                 },
                 "VolumeType": "io1",
-                "Iops": 1000,
+                "Iops": { "Ref": "DataNodeDiskIops" },
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1784,7 +1793,7 @@
                     "Ref": "DataNodeDiskSize"
                 },
                 "VolumeType": "io1",
-                "Iops": 1000,
+                "Iops": { "Ref": "DataNodeDiskIops" },
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"

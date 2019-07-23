@@ -24,7 +24,8 @@
                         "Password",
                         "InfluxDBVersion",
                         "TelegrafVersion",
-                        "DataNodeDiskSize"
+                        "DataNodeDiskSize",
+                        "DataNodeDiskIops"
                     ]
                 }
             ],
@@ -58,6 +59,9 @@
                 },
                 "DataNodeDiskSize": {
                     "default": "InfluxDB Data Node Disk Size"
+                },
+                "DataNodeDiskIops": {
+                    "default": "InfluxDB Data Node Disk IOPS"
                 },
                 "MetaNodeInstanceType": {
                     "default": "InfluxDB Meta Node Instance Type"
@@ -115,6 +119,11 @@
             "Description": "Size in GB of the EBS io1 volume on each data node",
             "Type": "Number",
             "Default": 250
+        },
+        "DataNodeDiskIops": {
+            "Description": "IOPS of the EBS io1 volume on each data node",
+            "Type": "Number",
+            "Default": 1000
         },
         "MetaNodeInstanceType": {
             "Description": "Instance type for meta nodes",
@@ -518,11 +527,20 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "MONITOR_HOSTNAME=", { "Ref": "MonitorDns"},
+                                            "MONITOR_HOSTNAME=",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
                                             "\n",
-                                            "MONITOR_USERNAME=", { "Ref": "Username"},
+                                            "MONITOR_USERNAME=",
+                                            {
+                                                "Ref": "Username"
+                                            },
                                             "\n",
-                                            "MONITOR_PASSWORK=", { "Ref": "Password"},
+                                            "MONITOR_PASSWORK=",
+                                            {
+                                                "Ref": "Password"
+                                            },
                                             "\n"
                                         ]
                                     ]
@@ -1305,11 +1323,20 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "MONITOR_HOSTNAME=", { "Ref": "MonitorDns"},
+                                            "MONITOR_HOSTNAME=",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
                                             "\n",
-                                            "MONITOR_USERNAME=", { "Ref": "Username"},
+                                            "MONITOR_USERNAME=",
+                                            {
+                                                "Ref": "Username"
+                                            },
                                             "\n",
-                                            "MONITOR_PASSWORK=", { "Ref": "Password"},
+                                            "MONITOR_PASSWORK=",
+                                            {
+                                                "Ref": "Password"
+                                            },
                                             "\n"
                                         ]
                                     ]
@@ -1639,7 +1666,9 @@
                     "Ref": "DataNodeDiskSize"
                 },
                 "VolumeType": "io1",
-                "Iops": 1000,
+                "Iops": {
+                    "Ref": "DataNodeDiskIops"
+                },
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1757,7 +1786,9 @@
                     "Ref": "DataNodeDiskSize"
                 },
                 "VolumeType": "io1",
-                "Iops": 1000,
+                "Iops": {
+                    "Ref": "DataNodeDiskIops"
+                },
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1887,11 +1918,20 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "MONITOR_HOSTNAME=", { "Ref": "MonitorDns"},
+                                            "MONITOR_HOSTNAME=",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
                                             "\n",
-                                            "MONITOR_USERNAME=", { "Ref": "Username"},
+                                            "MONITOR_USERNAME=",
+                                            {
+                                                "Ref": "Username"
+                                            },
                                             "\n",
-                                            "MONITOR_PASSWORK=", { "Ref": "Password"},
+                                            "MONITOR_PASSWORK=",
+                                            {
+                                                "Ref": "Password"
+                                            },
                                             "\n"
                                         ]
                                     ]
