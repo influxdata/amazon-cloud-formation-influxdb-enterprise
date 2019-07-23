@@ -7,87 +7,54 @@
         "influxdb_version": "1.7.7",
         "chronograf_version": "1.7.12",
         "kapacitor_version": "1.5.3"
-      },
-    "builders": [{
-        "name": "ami",
-        "ami_name": "{{user `base_ami_name`}}-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_ami_name}}",
-        "ami_description": "An Amazon Linux 2 AMI that has the TICK stack installed and is set up to monitor an InfluxDB Enterprise cluster deployed from the AWS Marketplace listing.",
-        "instance_type": "t2.micro",
-        "region": "{{user `aws_region`}}",
-        "type": "amazon-ebs",
-        "source_ami_filter": {
-            "filters": {
-            "virtualization-type": "hvm",
-            "architecture": "x86_64",
-            "name": "amzn2-ami-hvm-*-x86_64-gp2",
-            "block-device-mapping.volume-type": "gp2",
-            "root-device-type": "ebs"
+    },
+    "builders": [
+        {
+            "name": "ami",
+            "ami_name": "{{user `base_ami_name`}}-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_ami_name}}",
+            "ami_description": "An Amazon Linux 2 AMI that has the TICK stack installed and is set up to monitor an InfluxDB Enterprise cluster deployed from the AWS Marketplace listing.",
+            "instance_type": "t2.micro",
+            "region": "{{user `aws_region`}}",
+            "type": "amazon-ebs",
+            "source_ami_filter": {
+                "filters": {
+                    "virtualization-type": "hvm",
+                    "architecture": "x86_64",
+                    "name": "amzn2-ami-hvm-*-x86_64-gp2",
+                    "block-device-mapping.volume-type": "gp2",
+                    "root-device-type": "ebs"
+                },
+                "owners": [
+                    "amazon"
+                ],
+                "most_recent": true
             },
-            "owners": ["amazon"],
-            "most_recent": true
+            "ssh_username": "ec2-user"
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "file",
+            "source": "../config",
+            "destination": "/tmp"
         },
-        "ssh_username": "ec2-user"
-    }],
-    "provisioners": [{
-        "type": "shell",
-        "inline": [
-            "sudo yum update -y -q",
-            "sudo yum install git -y -q",
-            "while [[ `ps -ef | grep 'yum' | grep -v 'grep' | wc` -gt 0 ]]; do sleep 10; done"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
-            "curl -s https://dl.influxdata.com/telegraf/releases/telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm --output telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm",
-            "sudo yum -y -q localinstall telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm",
-            "rm telegraf-{{ user `telegraf_version` }}-1.x86_64.rpm",
-            "sudo systemctl stop telegraf.service",
-            "sudo systemctl disable telegraf.service"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
-            "curl -s https://dl.influxdata.com/influxdb/releases/influxdb-{{ user `influxdb_version` }}.x86_64.rpm --output influxdb-{{ user `influxdb_version` }}.x86_64.rpm",
-            "sudo yum -y -q localinstall influxdb-{{ user `influxdb_version` }}.x86_64.rpm",
-            "rm influxdb-{{ user `influxdb_version` }}.x86_64.rpm",
-            "sudo systemctl stop influxdb.service",
-            "sudo systemctl disable influxdb.service"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
-            "curl -s https://dl.influxdata.com/chronograf/releases/chronograf-{{ user `chronograf_version` }}.x86_64.rpm --output chronograf-{{ user `chronograf_version` }}.x86_64.rpm",
-            "sudo yum -y -q localinstall chronograf-{{ user `chronograf_version` }}.x86_64.rpm",
-            "rm chronograf-{{ user `chronograf_version` }}.x86_64.rpm",
-            "sudo rm /etc/init.d/chronograf",
-            "sudo chkconfig --del chronograf",
-            "sudo cp -f /usr/lib/chronograf/scripts/chronograf.service /lib/systemd/system/chronograf.service",
-            "sudo systemctl daemon-reload || true"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
-            "curl -s https://dl.influxdata.com/kapacitor/releases/kapacitor-{{ user `kapacitor_version` }}.x86_64.rpm --output kapacitor-{{ user `kapacitor_version` }}.x86_64.rpm",
-            "sudo yum -y -q localinstall kapacitor-{{ user `kapacitor_version` }}.x86_64.rpm",
-            "rm kapacitor-{{ user `kapacitor_version` }}.x86_64.rpm",
-            "sudo systemctl stop kapacitor.service",
-            "sudo systemctl disable kapacitor.service"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
-            "git clone --branch master https://github.com/influxdata/amazon-cloud-formation-influxdb-enterprise.git",
-            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/telegraf* /etc/telegraf/",
-            "sudo chown -R telegraf:telegraf /etc/telegraf",
-            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/influxdb* /etc/influxdb/",
-            "sudo chown -R influxdb:influxdb /etc/influxdb",
-            "sudo mv amazon-cloud-formation-influxdb-enterprise/multi-ami/config/kapacitor* /etc/kapacitor/",
-            "sudo chown -R kapacitor:kapacitor /etc/kapacitor"
-        ]
-    },{
-        "type": "shell",
-        "inline": [
-            "rm .ssh/authorized_keys ; sudo rm /root/.ssh/authorized_keys"
-        ]
-    }]
+        {
+            "type": "file",
+            "source": "./scripts",
+            "destination": "/tmp"
+        },
+        {
+            "type": "shell",
+            "inline": [
+                "sudo yum update -y -q",
+                "while [[ `ps -ef | grep 'yum' | grep -v 'grep' | wc` -gt 0 ]]; do sleep 10; done",
+                "sudo /tmp/scripts/setup-influxdb.sh {{ user `influxdb_version` }}",
+                "sudo /tmp/scripts/setup-telegraf.sh {{ user `telegraf_version` }} monitor",
+                "sudo /tmp/scripts/setup-chronograf.sh {{ user `chronograf_version` }}",
+                "sudo /tmp/scripts/setup-kapacitor.sh {{ user `kapacitor_version` }}",
+                "sudo rm -r /tmp/scripts /tmp/config",
+                "rm .ssh/authorized_keys ; sudo rm /root/.ssh/authorized_keys"
+            ]
+        }
+    ]
 }
