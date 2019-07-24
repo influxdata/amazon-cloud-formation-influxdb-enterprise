@@ -20,6 +20,7 @@
                         "default": "InfluxDB Configuration"
                     },
                     "Parameters": [
+                        "LicenseKey",
                         "Username",
                         "Password",
                         "InfluxDBVersion",
@@ -61,7 +62,7 @@
                     "default": "InfluxDB Data Node Disk Size"
                 },
                 "DataNodeDiskIops": {
-                  "default": "InfluxDB Data Node Disk IOPS"
+                    "default": "InfluxDB Data Node Disk IOPS"
                 },
                 "MetaNodeInstanceType": {
                     "default": "InfluxDB Meta Node Instance Type"
@@ -70,7 +71,7 @@
                     "default": "InfluxDB Monitor Instance Type"
                 },
                 "LicenseKey": {
-                  "default": "InfluxDB Enterprise License Key"
+                    "default": "InfluxDB Enterprise License Key"
                 }
             }
         }
@@ -124,9 +125,9 @@
             "Default": 250
         },
         "DataNodeDiskIops": {
-          "Description": "IOPS of the EBS io1 volume on each data node",
-          "Type": "Number",
-          "Default": 1000
+            "Description": "IOPS of the EBS io1 volume on each data node",
+            "Type": "Number",
+            "Default": 1000
         },
         "MetaNodeInstanceType": {
             "Description": "Instance type for meta nodes",
@@ -155,15 +156,11 @@
         },
         "SSHLocation": {
             "Description": "The IP address range that can be used to SSH to the EC2 instances",
-            "Type": "String",
-            "MinLength": "9",
-            "MaxLength": "18",
-            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
-            "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+            "Type": "String"
         },
         "LicenseKey": {
-          "Description": "A license key is required to deploy this solution, E.g a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx. Visit https://portal.influxdata.com/users/aws for a free trial",
-          "Type": "String"
+            "Description": "A license key is required to deploy this solution, E.g a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx. Visit https://portal.influxdata.com/users/aws for a free trial",
+            "Type": "String"
         }
     },
     "Outputs": {
@@ -203,7 +200,7 @@
                 ]
             }
         },
-        "InfluxDBLoadBalancerDns": {
+        "InfluxDBLoadBalancerRecordSet": {
             "Type": "AWS::Route53::RecordSet",
             "Properties": {
                 "AliasTarget": {
@@ -564,7 +561,7 @@
                         "commands": {
                             "01_attach_network": {
                                 "command": {
-                                    "Fn:Join": [
+                                    "Fn::Join": [
                                         "",
                                         [
                                             "# If network interface is not attached to this instance, then attach it",
@@ -819,7 +816,7 @@
                                             },
                                             " \"http://",
                                             {
-                                                "Ref": "InfluxDBLoadBalancerDns"
+                                                "Ref": "InfluxDBLoadBalancerRecordSet"
                                             },
                                             ":8086/query\"",
                                             "        --data-urlencode 'q=\"",
@@ -949,7 +946,8 @@
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
                 "Name": "data-0.influxdb.internal",
-                "Type": "A"
+                "Type": "A",
+                "TTL": "60"
             }
         },
         "MetaNodeVolume00": {
@@ -971,15 +969,23 @@
         },
         "MetaNodeAutoScalingGroup00": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
+            "DependsOn": [
+                "MetaNodeAutoScalingGroup01",
+                "MetaNodeAutoScalingGroup02",
+                "DataNodeAutoScalingGroup03",
+                "DataNodeAutoScalingGroup04"
+            ],
             "Properties": {
-                "VPCZoneIdentifier": {
-                    "Fn::Select": [
-                        0,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
-                },
+                "VPCZoneIdentifier": [
+                    {
+                        "Fn::Select": [
+                            0,
+                            {
+                                "Ref": "Subnets"
+                            }
+                        ]
+                    }
+                ],
                 "LaunchConfigurationName": {
                     "Ref": "MetaNodeLaunchConfiguration"
                 },
@@ -1064,7 +1070,8 @@
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
                 "Name": "data-1.influxdb.internal",
-                "Type": "A"
+                "Type": "A",
+                "TTL": "60"
             }
         },
         "MetaNodeVolume01": {
@@ -1087,14 +1094,16 @@
         "MetaNodeAutoScalingGroup01": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
             "Properties": {
-                "VPCZoneIdentifier": {
-                    "Fn::Select": [
-                        1,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
-                },
+                "VPCZoneIdentifier": [
+                    {
+                        "Fn::Select": [
+                            1,
+                            {
+                                "Ref": "Subnets"
+                            }
+                        ]
+                    }
+                ],
                 "LaunchConfigurationName": {
                     "Ref": "MetaNodeLaunchConfiguration"
                 },
@@ -1179,7 +1188,8 @@
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
                 "Name": "data-2.influxdb.internal",
-                "Type": "A"
+                "Type": "A",
+                "TTL": "60"
             }
         },
         "MetaNodeVolume02": {
@@ -1202,14 +1212,16 @@
         "MetaNodeAutoScalingGroup02": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
             "Properties": {
-                "VPCZoneIdentifier": {
-                    "Fn::Select": [
-                        2,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
-                },
+                "VPCZoneIdentifier": [
+                    {
+                        "Fn::Select": [
+                            2,
+                            {
+                                "Ref": "Subnets"
+                            }
+                        ]
+                    }
+                ],
                 "LaunchConfigurationName": {
                     "Ref": "MetaNodeLaunchConfiguration"
                 },
@@ -1294,7 +1306,9 @@
                     "SetLicense": {
                         "files": {
                             "/etc/default/influxdb": {
-                                "contents": { "Fn::Sub": "INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}" },
+                                "contents": {
+                                    "Fn::Sub": "INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}"
+                                },
                                 "mode": "000644",
                                 "owner": "root",
                                 "group": "root"
@@ -1360,7 +1374,7 @@
                         "commands": {
                             "01_attach_network": {
                                 "command": {
-                                    "Fn:Join": [
+                                    "Fn::Join": [
                                         "",
                                         [
                                             "# If network interface is not attached to this instance, then attach it",
@@ -1657,7 +1671,8 @@
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
                 "Name": "data-3.influxdb.internal",
-                "Type": "A"
+                "Type": "A",
+                "TTL": "60"
             }
         },
         "DataNodeVolume03": {
@@ -1675,7 +1690,9 @@
                     "Ref": "DataNodeDiskSize"
                 },
                 "VolumeType": "io1",
-                "Iops": { "Ref": "DataNodeDiskIops" },
+                "Iops": {
+                    "Ref": "DataNodeDiskIops"
+                },
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1683,14 +1700,16 @@
         "DataNodeAutoScalingGroup03": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
             "Properties": {
-                "VPCZoneIdentifier": {
-                    "Fn::Select": [
-                        0,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
-                },
+                "VPCZoneIdentifier": [
+                    {
+                        "Fn::Select": [
+                            0,
+                            {
+                                "Ref": "Subnets"
+                            }
+                        ]
+                    }
+                ],
                 "LaunchConfigurationName": {
                     "Ref": "DataNodeLaunchConfiguration"
                 },
@@ -1775,7 +1794,8 @@
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
                 "Name": "data-4.influxdb.internal",
-                "Type": "A"
+                "Type": "A",
+                "TTL": "60"
             }
         },
         "DataNodeVolume04": {
@@ -1793,7 +1813,9 @@
                     "Ref": "DataNodeDiskSize"
                 },
                 "VolumeType": "io1",
-                "Iops": { "Ref": "DataNodeDiskIops" },
+                "Iops": {
+                    "Ref": "DataNodeDiskIops"
+                },
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1801,14 +1823,16 @@
         "DataNodeAutoScalingGroup04": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
             "Properties": {
-                "VPCZoneIdentifier": {
-                    "Fn::Select": [
-                        1,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
-                },
+                "VPCZoneIdentifier": [
+                    {
+                        "Fn::Select": [
+                            1,
+                            {
+                                "Ref": "Subnets"
+                            }
+                        ]
+                    }
+                ],
                 "LaunchConfigurationName": {
                     "Ref": "DataNodeLaunchConfiguration"
                 },
@@ -1951,7 +1975,7 @@
                         "commands": {
                             "01_attach_network": {
                                 "command": {
-                                    "Fn:Join": [
+                                    "Fn::Join": [
                                         "",
                                         [
                                             "# If network interface is not attached to this instance, then attach it",
@@ -2308,7 +2332,8 @@
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
                 "Name": "monitor.influxdb.internal",
-                "Type": "A"
+                "Type": "A",
+                "TTL": "60"
             }
         },
         "MonitorVolume": {
@@ -2331,14 +2356,16 @@
         "MonitorAutoScalingGroup": {
             "Type": "AWS::AutoScaling::AutoScalingGroup",
             "Properties": {
-                "VPCZoneIdentifier": {
-                    "Fn::Select": [
-                        2,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
-                },
+                "VPCZoneIdentifier": [
+                    {
+                        "Fn::Select": [
+                            2,
+                            {
+                                "Ref": "Subnets"
+                            }
+                        ]
+                    }
+                ],
                 "LaunchConfigurationName": {
                     "Ref": "MonitorLaunchConfiguration"
                 },

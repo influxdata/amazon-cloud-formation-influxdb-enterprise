@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -euxo pipefail
+
 # This is an development script for creating an InfluxDB Enterprise stack using
 # the Cloud Formation template in this repository. Please replace the InfluxDB password
 
@@ -23,21 +25,21 @@ readonly influxdb_username="${2:-admin}"
 readonly influxdb_password="${3:-admin}"
 readonly license_key="${LICENSE_KEY}"
 
-readonly template="influxdb-enterprise-byol.template"
+readonly template="cf-templates/influxdb-enterprise-byol.json"
 readonly vpc="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[].VpcId" --output text)"
-readonly subnets=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-46ae0a3c" --query "Subnets[].SubnetId")
-readonly availability_zones=$(aws ec2 describe-subnets --subnet-ids $subnets --query "Subnets[].AvailabilityZone")
+readonly subnets="$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-46ae0a3c" --query "Subnets[].SubnetId" | jq -r '.[0:3] | @tsv')"
+readonly availability_zones="$(aws ec2 describe-subnets --subnet-ids $subnets --query "Subnets[].AvailabilityZone" | jq -r '.[0:3] | @tsv' | sed -e $'s/\t/,/g')"
 readonly ssh_key_name="influxdb-$(aws configure get region)"
-readonly ssh_location="$(dig @resolver1.opendns.com ANY myip.opendns.com +short)/32"
 
-aws cloudformation deploy \
+IFS=$'\n' aws cloudformation deploy \
     --capabilities CAPABILITY_IAM \
     --template-file "${template}" \
+    --s3-bucket "aws-marketplace-influxdata" \
     --stack-name "${stack_name}" \
     --parameter-overrides \
         VpcId="${vpc}" \
-        Subnets="$(echo "${subnets}" | jq '.[]')" \
-        AvailabilityZones="$(echo "${availability_zones}" | jq '.[]')" \
+        Subnets="$(echo "${subnets}" | sed -e $'s/\t/,/g')" \
+        AvailabilityZones="$(echo "${availability_zones}" | sed -e $'s/\t/,/g')" \
         Username="${influxdb_username}" \
         Password="${influxdb_password}" \
         KeyName="${ssh_key_name}" \
