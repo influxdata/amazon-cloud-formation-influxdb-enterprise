@@ -489,7 +489,7 @@
                     "SetLicense": {
                         "files": {
                             "/etc/default/influxdb": {
-                                "contents": "INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws",
+                                "content": "INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws",
                                 "mode": "000644",
                                 "owner": "root",
                                 "group": "root"
@@ -523,7 +523,7 @@
                     "SetMonitor": {
                         "files": {
                             "/etc/default/telegraf": {
-                                "contents": {
+                                "content": {
                                     "Fn::Join": [
                                         "",
                                         [
@@ -789,17 +789,6 @@
                                             },
                                             ":8088",
                                             "\n",
-                                            "fi",
-                                            "\n"
-                                        ]
-                                    ]
-                                }
-                            },
-                            "02_create_influxdb_user": {
-                                "command": {
-                                    "Fn::Join": [
-                                        "",
-                                        [
                                             "curl -s -u ",
                                             {
                                                 "Ref": "Username"
@@ -824,6 +813,8 @@
                                             },
                                             "' WITH ALL PRIVILEGES",
                                             "\"'",
+                                            "\n",
+                                            "fi",
                                             "\n"
                                         ]
                                     ]
@@ -1011,6 +1002,11 @@
                         "Value": {
                             "Ref": "MetaNodeDns00"
                         },
+                        "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "influxdb-leader",
+                        "Value": "true",
                         "PropagateAtLaunch": true
                     }
                 ]
@@ -1300,7 +1296,7 @@
                     "SetLicense": {
                         "files": {
                             "/etc/default/influxdb": {
-                                "contents": "INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws",
+                                "content": "INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws",
                                 "mode": "000644",
                                 "owner": "root",
                                 "group": "root"
@@ -1334,7 +1330,7 @@
                     "SetMonitor": {
                         "files": {
                             "/etc/default/telegraf": {
-                                "contents": {
+                                "content": {
                                     "Fn::Join": [
                                         "",
                                         [
@@ -1935,7 +1931,7 @@
                     "SetMonitor": {
                         "files": {
                             "/etc/default/telegraf": {
-                                "contents": {
+                                "content": {
                                     "Fn::Join": [
                                         "",
                                         [
