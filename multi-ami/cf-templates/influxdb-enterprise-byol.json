@@ -11,6 +11,7 @@
                     "Parameters": [
                         "VpcId",
                         "Subnets",
+                        "AvailabilityZones",
                         "KeyName",
                         "SSHLocation"
                     ]
@@ -36,6 +37,9 @@
                 },
                 "Subnets": {
                     "default": "Subnets (must be in the same VPC)"
+                },
+                "AvailabilityZones": {
+                    "default": "Availability zones must match length and order of subnet AZs"
                 },
                 "KeyName": {
                     "default": "SSH Key Name"
@@ -320,6 +324,7 @@
                                         "ec2:AttachNetworkInterface",
                                         "ec2:AttachVolume",
                                         "ec2:DescribeVolumes",
+                                        "ec2:DescribeVolumeStatus",
                                         "ec2:DescribeInstances",
                                         "ec2:DescribeNetworkInterfaces",
                                         "ec2:DescribeTags",
@@ -649,27 +654,18 @@
                     },
                     "MountVolume": {
                         "commands": {
-                            "01_set_fstab": {
+                            "01_mount_volumes": {
                                 "command": {
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "cp /etc/fstab /etc/fstab.original",
+                                            "set -x",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
-                                            "\n"
-                                        ]
-                                    ]
-                                }
-                            },
-                            "02_mount_volumes": {
-                                "command": {
-                                    "Fn::Join": [
-                                        "",
-                                        [
+                                            "/sbin/ebsnvme-id -b /dev/nvme1n1",
+                                            "\n",
                                             "until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done",
                                             "\n",
-                                            "if [ \"$(lsblk -no FSTYPE /dev/xvdh)\" == \"ext4\" ]; then",
+                                            "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" != \"ext4\" ]]; then",
                                             "\n",
                                             "/usr/sbin/mkfs -t ext4 /dev/xvdh",
                                             "\n",
@@ -679,13 +675,38 @@
                                             "\n",
                                             "mkdir -p /influxdb",
                                             "\n",
-                                            "/usr/bin/mount /dev/xvdh /influxdb",
+                                            "mount /dev/xvdh /influxdb",
                                             "\n",
                                             "/sbin/resize2fs /dev/xvdh",
                                             "\n",
                                             "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
                                             "chown -R influxdb:influxdb /influxdb",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "02_set_fstab": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "set -e",
+                                            "\n",
+                                            "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
+                                            "\n",
+                                            "if grep -q $DEVICE_UUID /etc/fstab; then",
+                                            "\n",
+                                            "echo \"fstab already set\"",
+                                            "\n",
+                                            "else",
+                                            "\n",
+                                            "cp /etc/fstab /etc/fstab.original",
+                                            "\n",
+                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "\n",
+                                            "fi",
                                             "\n"
                                         ]
                                     ]
@@ -1384,7 +1405,7 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "set -euxo pipefail",
+                                            "set -x",
                                             "\n",
                                             "# If network interface is not attached to this instance, then attach it",
                                             "\n",
@@ -1432,7 +1453,7 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "set -euxo pipefail",
+                                            "set -x",
                                             "\n",
                                             "# If EBS volume is not attached to this instance, then attach it",
                                             "\n",
@@ -1476,27 +1497,16 @@
                     },
                     "MountVolume": {
                         "commands": {
-                            "01_set_fstab": {
+                            "01_mount_volumes": {
                                 "command": {
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "cp /etc/fstab /etc/fstab.original",
+                                            "set -x",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
-                                            "\n"
-                                        ]
-                                    ]
-                                }
-                            },
-                            "02_mount_volumes": {
-                                "command": {
-                                    "Fn::Join": [
-                                        "",
-                                        [
-                                            "until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done",
+                                            "/sbin/ebsnvme-id -b /dev/nvme1n1",
                                             "\n",
-                                            "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" == \"ext4\" ]]; then",
+                                            "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" != \"ext4\" ]]; then",
                                             "\n",
                                             "/usr/sbin/mkfs -t ext4 /dev/xvdh",
                                             "\n",
@@ -1506,13 +1516,38 @@
                                             "\n",
                                             "mkdir -p /influxdb",
                                             "\n",
-                                            "/usr/bin/mount /dev/xvdh /influxdb",
+                                            "mount /dev/xvdh /influxdb",
                                             "\n",
                                             "/sbin/resize2fs /dev/xvdh",
                                             "\n",
                                             "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
                                             "chown -R influxdb:influxdb /influxdb",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "02_set_fstab": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "set -x",
+                                            "\n",
+                                            "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
+                                            "\n",
+                                            "if grep -q $DEVICE_UUID /etc/fstab; then",
+                                            "\n",
+                                            "echo \"fstab already set\"",
+                                            "\n",
+                                            "else",
+                                            "\n",
+                                            "cp /etc/fstab /etc/fstab.original",
+                                            "\n",
+                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "\n",
+                                            "fi",
                                             "\n"
                                         ]
                                     ]
@@ -2091,27 +2126,18 @@
                     },
                     "MountVolume": {
                         "commands": {
-                            "01_set_fstab": {
+                            "01_mount_volumes": {
                                 "command": {
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "cp /etc/fstab /etc/fstab.original",
+                                            "set -x",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
-                                            "\n"
-                                        ]
-                                    ]
-                                }
-                            },
-                            "02_mount_volumes": {
-                                "command": {
-                                    "Fn::Join": [
-                                        "",
-                                        [
+                                            "/sbin/ebsnvme-id -b /dev/nvme1n1",
+                                            "\n",
                                             "until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done",
                                             "\n",
-                                            "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" == \"ext4\" ]]; then",
+                                            "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" != \"ext4\" ]]; then",
                                             "\n",
                                             "/usr/sbin/mkfs -t ext4 /dev/xvdh",
                                             "\n",
@@ -2121,15 +2147,38 @@
                                             "\n",
                                             "mkdir -p /influxdb",
                                             "\n",
-                                            "/usr/bin/mount /dev/xvdh /influxdb",
+                                            "mount /dev/xvdh /influxdb",
                                             "\n",
                                             "/sbin/resize2fs /dev/xvdh",
                                             "\n",
-                                            "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh /influxdb/kapacitor",
+                                            "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
                                             "chown -R influxdb:influxdb /influxdb",
+                                            "\n"
+                                        ]
+                                    ]
+                                }
+                            },
+                            "02_set_fstab": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "set -e",
                                             "\n",
-                                            "chown -R kapacitor:kapacitor /influxdb/kapacitor",
+                                            "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
+                                            "\n",
+                                            "if grep -q $DEVICE_UUID /etc/fstab; then",
+                                            "\n",
+                                            "echo \"fstab already set\"",
+                                            "\n",
+                                            "else",
+                                            "\n",
+                                            "cp /etc/fstab /etc/fstab.original",
+                                            "\n",
+                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "\n",
+                                            "fi",
                                             "\n"
                                         ]
                                     ]
