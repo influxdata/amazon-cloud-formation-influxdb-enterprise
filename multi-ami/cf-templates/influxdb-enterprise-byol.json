@@ -136,8 +136,11 @@
         "MetaNodeInstanceType": {
             "Description": "Instance type for meta nodes",
             "Type": "String",
-            "Default": "t3.small",
+            "Default": "t2.small",
             "AllowedValues": [
+                "t2.small",
+                "t2.medium",
+                "t2.large",
                 "t3.small",
                 "t3.medium",
                 "t3.large"
@@ -147,8 +150,13 @@
         "MonitorInstanceType": {
             "Description": "Instance type for monitoring node",
             "Type": "String",
-            "Default": "t3.large",
+            "Default": "t2.medium",
             "AllowedValues": [
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "t3.small",
+                "t3.medium",
                 "t3.large"
             ],
             "ConstraintDescription": "must be a valid EC2 instance type."
@@ -503,7 +511,7 @@
                         "commands": {
                             "01_set_influxdb_license": {
                                 "command": {
-                                    "Fn::Sub": "echo \"INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}\" >> /etc/default/influxdb"
+                                    "Fn::Sub": "echo \"INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}\n\" >> /etc/default/influxdb"
                                 }
                             }
                         }
@@ -515,6 +523,8 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "INFLUXDB_HOSTNAME=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
@@ -566,6 +576,8 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "# If network interface is not attached to this instance, then attach it",
                                             "\n",
                                             "ENI_ID=$( aws ec2 describe-tags",
@@ -581,7 +593,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -612,6 +624,8 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "# If EBS volume is not attached to this instance, then attach it",
                                             "\n",
                                             "VOLUME_ID=$( aws ec2 describe-tags",
@@ -625,7 +639,7 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
                                             "\n",
                                             "# Wait until volume is available",
                                             "\n",
@@ -637,12 +651,12 @@
                                             "        --instance-id $INSTANCE_ID",
                                             "        --device /dev/xvdh",
                                             "\n",
-                                            "until [ $(",
+                                            "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
                                             "        --volume-id $VOLUME_ID",
                                             "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
                                             "        --output text",
-                                            ") = ok ]; do sleep 5; done",
+                                            ")\" == 'ok' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -692,11 +706,11 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "set -e",
+                                            "set -x",
                                             "\n",
                                             "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
                                             "\n",
-                                            "if grep -q $DEVICE_UUID /etc/fstab; then",
+                                            "if grep -q \"$DEVICE_UUID\" /etc/fstab; then",
                                             "\n",
                                             "echo \"fstab already set\"",
                                             "\n",
@@ -704,7 +718,7 @@
                                             "\n",
                                             "cp /etc/fstab /etc/fstab.original",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -779,12 +793,14 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "LEADER=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
                                             "        --query \"Tags[?Key=='influxdb-leader'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [ $LEADER == 'true' ]; then",
+                                            "if [[ \"$LEADER == 'true'\" ]]; then",
                                             "\n",
                                             "influxd-ctl add-meta ",
                                             {
@@ -875,7 +891,6 @@
                 "KeyName": {
                     "Ref": "KeyName"
                 },
-                "EbsOptimized": true,
                 "IamInstanceProfile": {
                     "Ref": "InfluxDBInstanceProfile"
                 },
@@ -906,7 +921,7 @@
                                 "\n",
                                 "ASG_NAME=$( aws ec2 describe-tags",
                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
-                                "        --query \"Tags[?Key=='aws:autoscaling:groupName'].Value\"",
+                                "        --query \"Tags[?Key=='aws:cloudformation:logical-id'].Value\"",
                                 "        --output text )",
                                 "\n",
                                 "# Signal the status from cfn-init\n",
@@ -1354,6 +1369,8 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "INFLUXDB_HOSTNAME=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
@@ -1422,7 +1439,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -1468,7 +1485,7 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
                                             "\n",
                                             "# Wait until volume is available",
                                             "\n",
@@ -1480,12 +1497,12 @@
                                             "        --instance-id $INSTANCE_ID",
                                             "        --device /dev/xvdh",
                                             "\n",
-                                            "until [ $(",
+                                            "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
                                             "        --volume-id $VOLUME_ID",
                                             "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
                                             "        --output text",
-                                            ") = ok ]; do sleep 5; done",
+                                            ")\" == 'ok' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -1505,6 +1522,8 @@
                                             "set -x",
                                             "\n",
                                             "/sbin/ebsnvme-id -b /dev/nvme1n1",
+                                            "\n",
+                                            "until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done",
                                             "\n",
                                             "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" != \"ext4\" ]]; then",
                                             "\n",
@@ -1537,7 +1556,7 @@
                                             "\n",
                                             "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
                                             "\n",
-                                            "if grep -q $DEVICE_UUID /etc/fstab; then",
+                                            "if grep -q \"$DEVICE_UUID\" /etc/fstab; then",
                                             "\n",
                                             "echo \"fstab already set\"",
                                             "\n",
@@ -1545,7 +1564,7 @@
                                             "\n",
                                             "cp /etc/fstab /etc/fstab.original",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -1670,7 +1689,7 @@
                                 "\n",
                                 "ASG_NAME=$( aws ec2 describe-tags",
                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
-                                "        --query \"Tags[?Key=='aws:autoscaling:groupName'].Value\"",
+                                "        --query \"Tags[?Key=='aws:cloudformation:logical-id'].Value\"",
                                 "        --output text )",
                                 "\n",
                                 "# Signal the status from cfn-init\n",
@@ -1987,10 +2006,12 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "INFLUXDB_HOSTNAME=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
-                                            "        --output text )\n",
+                                            "        --output text )",
                                             "\n",
                                             "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\n\" >> /etc/default/influxdb",
                                             "\n"
@@ -2038,6 +2059,8 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "# If network interface is not attached to this instance, then attach it",
                                             "\n",
                                             "ENI_ID=$( aws ec2 describe-tags",
@@ -2053,7 +2076,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -2084,6 +2107,8 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "# If EBS volume is not attached to this instance, then attach it",
                                             "\n",
                                             "VOLUME_ID=$( aws ec2 describe-tags",
@@ -2097,7 +2122,7 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
                                             "\n",
                                             "# Wait until volume is available",
                                             "\n",
@@ -2109,12 +2134,12 @@
                                             "        --instance-id $INSTANCE_ID",
                                             "        --device /dev/xvdh",
                                             "\n",
-                                            "until [ $(",
+                                            "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
                                             "        --volume-id $VOLUME_ID",
                                             "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
                                             "        --output text",
-                                            ") = ok ]; do sleep 5; done",
+                                            ")\" == 'ok' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -2164,11 +2189,11 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "set -e",
+                                            "set -x",
                                             "\n",
                                             "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
                                             "\n",
-                                            "if grep -q $DEVICE_UUID /etc/fstab; then",
+                                            "if grep -q \"$DEVICE_UUID\" /etc/fstab; then",
                                             "\n",
                                             "echo \"fstab already set\"",
                                             "\n",
@@ -2176,7 +2201,7 @@
                                             "\n",
                                             "cp /etc/fstab /etc/fstab.original",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -2256,11 +2281,8 @@
                     },
                     "StartKapacitor": {
                         "commands": {
-                            "01_enable_kapacitor_service": {
-                                "command": "systemctl enable kapacitor"
-                            },
-                            "02_start_kapacitor_service": {
-                                "command": "systemctl start kapacitor"
+                            "01_start_kapacitor_service": {
+                                "command": "service kapacitor start"
                             }
                         }
                     },
@@ -2271,6 +2293,8 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
                                             "curl -s -u ",
                                             {
                                                 "Ref": "Username"
@@ -2328,7 +2352,6 @@
                 "KeyName": {
                     "Ref": "KeyName"
                 },
-                "EbsOptimized": true,
                 "IamInstanceProfile": {
                     "Ref": "InfluxDBInstanceProfile"
                 },
@@ -2359,7 +2382,7 @@
                                 "\n",
                                 "ASG_NAME=$( aws ec2 describe-tags",
                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
-                                "        --query \"Tags[?Key=='aws:autoscaling:groupName'].Value\"",
+                                "        --query \"Tags[?Key=='aws:cloudformation:logical-id'].Value\"",
                                 "        --output text )",
                                 "\n",
                                 "# Signal the status from cfn-init\n",

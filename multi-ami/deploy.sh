@@ -27,7 +27,7 @@ readonly license_key="${LICENSE_KEY}"
 
 readonly template="cf-templates/influxdb-enterprise-byol.json"
 readonly vpc="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[].VpcId" --output text)"
-readonly subnets="$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-46ae0a3c" --query "Subnets[].SubnetId" | jq -r '.[0:3] | @tsv')"
+readonly subnets="$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc" --query "Subnets[].SubnetId" | jq -r '.[0:3] | @tsv')"
 readonly availability_zones="$(aws ec2 describe-subnets --subnet-ids $subnets --query "Subnets[].AvailabilityZone" | jq -r '.[0:3] | @tsv' | sed -e $'s/\t/,/g')"
 readonly ssh_key_name="influxdb-$(aws configure get region)"
 
