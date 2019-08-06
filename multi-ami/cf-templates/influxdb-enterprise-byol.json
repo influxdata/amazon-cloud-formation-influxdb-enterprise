@@ -117,9 +117,14 @@
         "DataNodeInstanceType": {
             "Description": "Instance type for data nodes",
             "Type": "String",
-            "Default": "m5.large",
+            "Default": "m5.4xlarge",
             "AllowedValues": [
-                "m5.large"
+                "m5.4xlarge",
+                "m4.4xlarge",
+                "r5.4xlarge",
+                "r4.4xlarge",
+                "c5.4xlarge",
+                "c4.4xlarge"
             ],
             "ConstraintDescription": "must be a valid EC2 instance type."
         },
@@ -150,7 +155,7 @@
         "MonitorInstanceType": {
             "Description": "Instance type for monitoring node",
             "Type": "String",
-            "Default": "t2.medium",
+            "Default": "t2.large",
             "AllowedValues": [
                 "t2.small",
                 "t2.medium",
@@ -193,9 +198,9 @@
     "Mappings": {
         "AMIRegionMap": {
             "us-east-1": {
-                "Data": "ami-0abcd07748a546814",
-                "Meta": "ami-0f02ea61f831db914",
-                "Monitor": "ami-03143aadf634ceada"
+                "Data": "ami-0777bac81a228d764",
+                "Meta": "ami-0a356f4c9468a6f8a",
+                "Monitor": "ami-0b0af8c2b43f4a937"
             }
         }
     },
@@ -511,7 +516,7 @@
                         "commands": {
                             "01_set_influxdb_license": {
                                 "command": {
-                                    "Fn::Sub": "echo \"INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}\n\" >> /etc/default/influxdb"
+                                    "Fn::Sub": "echo \"INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}\" >> /etc/default/influxdb-meta"
                                 }
                             }
                         }
@@ -530,7 +535,7 @@
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\n\" >> /etc/default/influxdb",
+                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\" >> /etc/default/influxdb-meta",
                                             "\n"
                                         ]
                                     ]
@@ -555,7 +560,7 @@
                                                 "Ref": "Username"
                                             },
                                             "\n",
-                                            "MONITOR_PASSWORK=",
+                                            "MONITOR_PASSWORD=",
                                             {
                                                 "Ref": "Password"
                                             },
@@ -593,7 +598,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -639,7 +644,7 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until volume is available",
                                             "\n",
@@ -832,7 +837,7 @@
                                             },
                                             ":8088",
                                             "\n",
-                                            "curl -s -u ",
+                                            "curl -u ",
                                             {
                                                 "Ref": "Username"
                                             },
@@ -845,7 +850,7 @@
                                                 "Ref": "InfluxDBLoadBalancerRecordSet"
                                             },
                                             ":8086/query\"",
-                                            "        --data-urlencode 'q=\"",
+                                            "        --data-urlencode \"q=",
                                             "CREATE USER ",
                                             {
                                                 "Ref": "Username"
@@ -855,7 +860,7 @@
                                                 "Ref": "Password"
                                             },
                                             "' WITH ALL PRIVILEGES",
-                                            "\"'",
+                                            "\"",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -991,7 +996,7 @@
                         }
                     ]
                 },
-                "Size": 20,
+                "Size": 25,
                 "VolumeType": "gp2",
                 "Encrypted": true
             },
@@ -1357,7 +1362,7 @@
                         "commands": {
                             "01_set_influxdb_license": {
                                 "command": {
-                                    "Fn::Sub": "echo \"INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}\n\" >> /etc/default/influxdb"
+                                    "Fn::Sub": "echo \"INFLUXDB_ENTERPRISE_LICENSE_KEY=${LicenseKey}\" >> /etc/default/influxdb"
                                 }
                             }
                         }
@@ -1376,7 +1381,7 @@
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\n\" >> /etc/default/influxdb",
+                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\" >> /etc/default/influxdb",
                                             "\n"
                                         ]
                                     ]
@@ -1401,7 +1406,7 @@
                                                 "Ref": "Username"
                                             },
                                             "\n",
-                                            "MONITOR_PASSWORK=",
+                                            "MONITOR_PASSWORD=",
                                             {
                                                 "Ref": "Password"
                                             },
@@ -1439,7 +1444,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -1485,7 +1490,7 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until volume is available",
                                             "\n",
@@ -1975,11 +1980,14 @@
                             "SetAWSCLIRegion",
                             "SetHostnames",
                             "SetMonitor",
+                            "SetKapacitor",
                             "AttachNetwork",
                             "AttachVolume",
                             "MountVolume",
                             "UpdateInfluxDB",
                             "UpdateTelegraf",
+                            "UpdateChronograf",
+                            "UpdateKapacitor",
                             "StartInfluxDB",
                             "StartTelegraf",
                             "StartChronograf",
@@ -2013,7 +2021,7 @@
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\n\" >> /etc/default/influxdb",
+                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\" >> /etc/default/influxdb",
                                             "\n"
                                         ]
                                     ]
@@ -2038,7 +2046,43 @@
                                                 "Ref": "Username"
                                             },
                                             "\n",
-                                            "MONITOR_PASSWORK=",
+                                            "MONITOR_PASSWORD=",
+                                            {
+                                                "Ref": "Password"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "mode": "000644",
+                                "owner": "root",
+                                "group": "root"
+                            }
+                        }
+                    },
+                    "SetKapacitor": {
+                        "files": {
+                            "/etc/default/kapacitor": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "KAPACITOR_INFLUXDB_0_URLS_0=",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
+                                            "\n",
+                                            "KAPACITOR_INFLUXDB_0_NAME=",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
+                                            "\n",
+                                            "KAPACITOR_INFLUXDB_0_USERNAME=",
+                                            {
+                                                "Ref": "Username"
+                                            },
+                                            "\n",
+                                            "KAPACITOR_INFLUXDB_0_PASSWORD=",
                                             {
                                                 "Ref": "Password"
                                             },
@@ -2076,7 +2120,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -2122,7 +2166,7 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [[ ( $STATUS != 'attached' ) || ( $STATUS != 'attaching' ) ]]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until volume is available",
                                             "\n",
@@ -2215,17 +2259,17 @@
                         "commands": {
                             "01_download_influxdb": {
                                 "command": {
-                                    "Fn::Sub": "curl -s https://dl.influxdata.com/enterprise/releases/influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm --output influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                    "Fn::Sub": "curl -s https://dl.influxdata.com/influxdb/releases/influxdb-${InfluxDBVersion}.x86_64.rpm --output influxdb-${InfluxDBVersion}.x86_64.rpm"
                                 }
                             },
                             "02_install_influxdb": {
                                 "command": {
-                                    "Fn::Sub": "yum localinstall -y -q influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                    "Fn::Sub": "yum localinstall -y -q influxdb-${InfluxDBVersion}.x86_64.rpm"
                                 }
                             },
                             "03_remove_package_file": {
                                 "command": {
-                                    "Fn::Sub": "rm influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                    "Fn::Sub": "rm influxdb-${InfluxDBVersion}.x86_64.rpm"
                                 }
                             }
                         }
@@ -2245,6 +2289,63 @@
                             "03_remove_package_file": {
                                 "command": {
                                     "Fn::Sub": "rm telegraf-${TelegrafVersion}-1.x86_64.rpm"
+                                }
+                            }
+                        }
+                    },
+                    "UpdateChronograf": {
+                        "commands": {
+                            "01_download_chrongoraf": {
+                                "command": "curl -s https://dl.influxdata.com/chronograf/releases/chronograf-1.7.12.x86_64.rpm --output chronograf-1.7.12.x86_64.rpm"
+                            },
+                            "02_install_chronograf": {
+                                "command": "yum localinstall -y -q chronograf-1.7.12.x86_64.rpm"
+                            },
+                            "03_remove_package_file": {
+                                "command": "rm chronograf-1.7.12.x86_64.rpm"
+                            },
+                            "04_setup_chronograf_service": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "rm -r /etc/init.d/chronograf",
+                                            "cp -f /usr/lib/chronograf/scripts/chronograf.service /usr/lib/systemd/system/chronograf.service",
+                                            "chown root:root /usr/lib/systemd/system/chronograf.service",
+                                            "chmod 644 /usr/lib/systemd/system/chronograf.service",
+                                            "systemctl daemon-reload || true"
+                                        ]
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "UpdateKapacitor": {
+                        "commands": {
+                            "01_download_kapacitor": {
+                                "command": "curl -s https://dl.influxdata.com/kapacitor/releases/kapacitor-1.5.3.x86_64.rpm --output kapacitor-1.5.3.x86_64.rpm"
+                            },
+                            "02_install_kapacitor": {
+                                "command": "yum localinstall -y -q kapacitor-1.5.3.x86_64.rpm"
+                            },
+                            "03_remove_package_file": {
+                                "command": "rm kapacitor-1.5.3.x86_64.rpm"
+                            },
+                            "04_setup_kapacitor_service": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "rm -r /etc/init.d/kapacitor",
+                                            "cp -f /usr/lib/kapacitor/scripts/chronograf.service /usr/lib/systemd/system/kapacitor.service",
+                                            "chown root:root /usr/lib/systemd/system/kapacitor.service",
+                                            "chmod 644 /usr/lib/systemd/system/kapacitor.service",
+                                            "chown -R kapacitor:kapacitor /var/log/kapacitor",
+                                            "mkdir -p /influxdb/kapacitor",
+                                            "chown -R kapacitor:kapacitor /influxdb/kapacitor",
+                                            "systemctl daemon-reload || true"
+                                        ]
+                                    ]
                                 }
                             }
                         }
@@ -2281,7 +2382,10 @@
                     },
                     "StartKapacitor": {
                         "commands": {
-                            "01_start_kapacitor_service": {
+                            "01_enable_kapacitor_service": {
+                                "command": "systemctl enable kapacitor"
+                            },
+                            "02_start_kapacitor_service": {
                                 "command": "service kapacitor start"
                             }
                         }
@@ -2295,7 +2399,7 @@
                                         [
                                             "set -x",
                                             "\n",
-                                            "curl -s -u ",
+                                            "curl -u ",
                                             {
                                                 "Ref": "Username"
                                             },
@@ -2308,17 +2412,31 @@
                                                 "Ref": "MonitorDns"
                                             },
                                             ":8086/query\"",
-                                            "        --data-urlencode 'q=\"",
+                                            "        --data-urlencode 'q=",
                                             "CREATE USER ",
                                             {
                                                 "Ref": "Username"
                                             },
-                                            " WITH PASSWORD '",
+                                            " WITH PASSWORD \\'",
                                             {
                                                 "Ref": "Password"
                                             },
-                                            "' WITH ALL PRIVILEGES",
-                                            "\"'",
+                                            "\\' WITH ALL PRIVILEGES'",
+                                            "\n",
+                                            "curl -u ",
+                                            {
+                                                "Ref": "Username"
+                                            },
+                                            ":",
+                                            {
+                                                "Ref": "Password"
+                                            },
+                                            " http://",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
+                                            ":8086/query",
+                                            "        --data-urlencode 'q=CREATE DATABASE telegraf WITH DURATION 30d SHARD DURATION 7d",
                                             "\n"
                                         ]
                                     ]
@@ -2335,7 +2453,7 @@
                         {
                             "Ref": "AWS::Region"
                         },
-                        "Data"
+                        "Monitor"
                     ]
                 },
                 "InstanceType": {
@@ -2452,7 +2570,7 @@
                         }
                     ]
                 },
-                "Size": 50,
+                "Size": 100,
                 "VolumeType": "gp2",
                 "Encrypted": true
             },

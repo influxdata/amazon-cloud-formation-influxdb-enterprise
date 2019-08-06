@@ -5,6 +5,9 @@ Enterprise listing on the AWS Marketplace.
 
 ## Deploying the template
 
+Login to an AWS account and subscribe to the [InfluxDB Enterprise solution on the AWS Marketplace]().
+
+
 This template can be deployed from the AWS Marketplace or via the AWS CLI using
 the template in this repo.
 
@@ -31,6 +34,3 @@ Run the following command to build the image:
 ```sh
 packer build influxdb-ami.json
 ```
-
-
-sudo hostnamectl set-hostname localdomain

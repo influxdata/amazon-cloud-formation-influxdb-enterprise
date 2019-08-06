@@ -8,5 +8,5 @@ rm "influxdb-$1.x86_64.rpm"
 sudo systemctl stop influxdb.service
 sudo systemctl disable influxdb.service
 sudo mv /etc/influxdb/influxdb.conf /etc/influxdb/influxdb.conf.original
-sudo mv /tmp/config/influxdb.conf /etc/influxdb/
+sudo mv /tmp/config/influxdb-monitor.conf /etc/influxdb/influxdb.conf
 sudo chown -R influxdb:influxdb /etc/influxdb/influxdb.conf

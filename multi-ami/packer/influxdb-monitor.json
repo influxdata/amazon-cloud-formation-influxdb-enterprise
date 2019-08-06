@@ -48,7 +48,7 @@
             "inline": [
                 "sudo yum update -y -q",
                 "while [[ `ps -ef | grep 'yum' | grep -v 'grep' | wc` -gt 0 ]]; do sleep 10; done",
-                "sudo /tmp/scripts/setup-influxdb.sh {{ user `influxdb_version` }}",
+                "sudo /tmp/scripts/setup-influxdb-monitor.sh {{ user `influxdb_version` }}",
                 "sudo /tmp/scripts/setup-telegraf.sh {{ user `telegraf_version` }} monitor",
                 "sudo /tmp/scripts/setup-chronograf.sh {{ user `chronograf_version` }}",
                 "sudo /tmp/scripts/setup-kapacitor.sh {{ user `kapacitor_version` }}",
