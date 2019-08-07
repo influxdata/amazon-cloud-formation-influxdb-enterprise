@@ -16,7 +16,7 @@ else
     echo -n "WARNING: cannot determine local IP address"
     ssh_location="0.0.0.0/0"
 fi
-ssh_location="0.0.0.0/0"
+
 # By default, this script will not actually execute a deploy. Remove the
 # "--no-execute-changeset" option to create resources.
 

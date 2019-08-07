@@ -1,6 +1,6 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Description": "InfluxDB Enterprise (BYOL)",
+    "Description": "InfluxDB Enterprise",
     "Metadata": {
         "AWS::CloudFormation::Interface": {
             "ParameterGroups": [
@@ -11,6 +11,7 @@
                     "Parameters": [
                         "VpcId",
                         "Subnets",
+                        "AvailabilityZones",
                         "KeyName",
                         "SSHLocation"
                     ]
@@ -35,6 +36,9 @@
                 },
                 "Subnets": {
                     "default": "Subnets (must be in the same VPC)"
+                },
+                "AvailabilityZones": {
+                    "default": "Availability zones must match length and order of subnet AZs"
                 },
                 "KeyName": {
                     "default": "SSH Key Name"
@@ -111,7 +115,12 @@
             "Type": "String",
             "Default": "m5.4xlarge",
             "AllowedValues": [
-                "m5.4xlarge"
+                "m5.4xlarge",
+                "m4.4xlarge",
+                "r5.4xlarge",
+                "r4.4xlarge",
+                "c5.4xlarge",
+                "c4.4xlarge"
             ],
             "ConstraintDescription": "must be a valid EC2 instance type."
         },
@@ -128,8 +137,11 @@
         "MetaNodeInstanceType": {
             "Description": "Instance type for meta nodes",
             "Type": "String",
-            "Default": "t3.small",
+            "Default": "t2.small",
             "AllowedValues": [
+                "t2.small",
+                "t2.medium",
+                "t2.large",
                 "t3.small",
                 "t3.medium",
                 "t3.large"
@@ -139,8 +151,13 @@
         "MonitorInstanceType": {
             "Description": "Instance type for monitoring node",
             "Type": "String",
-            "Default": "t3.large",
+            "Default": "t2.large",
             "AllowedValues": [
+                "t2.small",
+                "t2.medium",
+                "t2.large",
+                "t3.small",
+                "t3.medium",
                 "t3.large"
             ],
             "ConstraintDescription": "must be a valid EC2 instance type."
@@ -173,9 +190,9 @@
     "Mappings": {
         "AMIRegionMap": {
             "us-east-1": {
-                "Data": "ami-00b088931a3b20333",
-                "Meta": "ami-07ac60e7255bf7bbe",
-                "Monitor": "ami-0f96a39a7250beb80"
+                "Data": "ami-09a610575675773db",
+                "Meta": "ami-03878cb65608d4059",
+                "Monitor": "ami-029d01bab50d036c0"
             }
         }
     },
@@ -312,6 +329,7 @@
                                         "ec2:AttachNetworkInterface",
                                         "ec2:AttachVolume",
                                         "ec2:DescribeVolumes",
+                                        "ec2:DescribeVolumeStatus",
                                         "ec2:DescribeInstances",
                                         "ec2:DescribeNetworkInterfaces",
                                         "ec2:DescribeTags",
@@ -503,20 +521,18 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "set -x",
+                                            "\n",
                                             "INFLUXDB_HOSTNAME=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "hostnamectl set-hostname $INFLUXDB_HOSTNAME",
+                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\" >> /etc/default/influxdb-meta",
                                             "\n"
                                         ]
                                     ]
                                 }
-                            },
-                            "02_set_influxdb_hostname": {
-                                "command": "echo \"INFLUXDB_HOSTNAME=$HOSTNAME\" >> /etc/default/influxdb"
                             }
                         }
                     },
@@ -537,7 +553,7 @@
                                                 "Ref": "Username"
                                             },
                                             "\n",
-                                            "MONITOR_PASSWORK=",
+                                            "MONITOR_PASSWORD=",
                                             {
                                                 "Ref": "Password"
                                             },
@@ -558,9 +574,9 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "# If network interface is not attached to this instance, then attach it",
+                                            "set -x",
                                             "\n",
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "# If network interface is not attached to this instance, then attach it",
                                             "\n",
                                             "ENI_ID=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
@@ -575,7 +591,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -606,9 +622,9 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "# If EBS volume is not attached to this instance, then attach it",
+                                            "set -x",
                                             "\n",
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "# If EBS volume is not attached to this instance, then attach it",
                                             "\n",
                                             "VOLUME_ID=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
@@ -621,11 +637,9 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "# TODO: switch to until 'attached' loop",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
-                                            "\n",
-                                            "# Wait until network interface is available",
+                                            "# Wait until volume is available",
                                             "\n",
                                             "aws ec2 wait volume-available",
                                             "        --volume-ids $VOLUME_ID",
@@ -634,6 +648,13 @@
                                             "        --volume-id $VOLUME_ID",
                                             "        --instance-id $INSTANCE_ID",
                                             "        --device /dev/xvdh",
+                                            "\n",
+                                            "until [[ \"$(",
+                                            "aws ec2 describe-volume-status",
+                                            "        --volume-id $VOLUME_ID",
+                                            "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
+                                            "        --output text",
+                                            ")\" == 'ok' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -650,19 +671,27 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "if [ \"$(lsblk -no FSTYPE /dev/xvdh)\" == \"ext4\" ]; then",
+                                            "set -x",
                                             "\n",
-                                            "mkfs -t ext4 /dev/xvdh",
+                                            "/sbin/ebsnvme-id -b /dev/nvme1n1",
+                                            "\n",
+                                            "until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done",
+                                            "\n",
+                                            "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" != \"ext4\" ]]; then",
+                                            "\n",
+                                            "/usr/sbin/mkfs -t ext4 /dev/xvdh",
+                                            "\n",
+                                            "sleep 10",
                                             "\n",
                                             "fi",
                                             "\n",
-                                            "mkdir /influxdb",
+                                            "mkdir -p /influxdb",
                                             "\n",
                                             "mount /dev/xvdh /influxdb",
                                             "\n",
                                             "/sbin/resize2fs /dev/xvdh",
                                             "\n",
-                                            "mkdir /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
+                                            "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
                                             "chown -R influxdb:influxdb /influxdb",
                                             "\n"
@@ -675,9 +704,21 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
+                                            "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
+                                            "\n",
+                                            "if grep -q \"$DEVICE_UUID\" /etc/fstab; then",
+                                            "\n",
+                                            "echo \"fstab already set\"",
+                                            "\n",
+                                            "else",
+                                            "\n",
                                             "cp /etc/fstab /etc/fstab.original",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "\n",
+                                            "fi",
                                             "\n"
                                         ]
                                     ]
@@ -750,14 +791,14 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "set -x",
                                             "\n",
                                             "LEADER=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
                                             "        --query \"Tags[?Key=='influxdb-leader'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [ $LEADER == 'true' ]; then",
+                                            "if [[ \"$LEADER == 'true'\" ]]; then",
                                             "\n",
                                             "influxd-ctl add-meta ",
                                             {
@@ -789,7 +830,7 @@
                                             },
                                             ":8088",
                                             "\n",
-                                            "curl -s -u ",
+                                            "curl -u ",
                                             {
                                                 "Ref": "Username"
                                             },
@@ -802,7 +843,7 @@
                                                 "Ref": "InfluxDBLoadBalancerRecordSet"
                                             },
                                             ":8086/query\"",
-                                            "        --data-urlencode 'q=\"",
+                                            "        --data-urlencode \"q=",
                                             "CREATE USER ",
                                             {
                                                 "Ref": "Username"
@@ -812,7 +853,7 @@
                                                 "Ref": "Password"
                                             },
                                             "' WITH ALL PRIVILEGES",
-                                            "\"'",
+                                            "\"",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -848,7 +889,6 @@
                 "KeyName": {
                     "Ref": "KeyName"
                 },
-                "EbsOptimized": true,
                 "IamInstanceProfile": {
                     "Ref": "InfluxDBInstanceProfile"
                 },
@@ -857,9 +897,14 @@
                         "Fn::Join": [
                             "",
                             [
-                                "#!/usr/bin/env bash\n",
-                                "set -euxo pipefail\n",
-                                "yum update -y aws-cfn-bootstrap ec2-net-utils\n",
+                                "#!/usr/bin/env bash",
+                                "\n",
+                                "set -euxo pipefail",
+                                "\n",
+                                "yum update -y aws-cfn-bootstrap ec2-net-utils",
+                                "\n",
+                                "export INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                "\n",
                                 "/opt/aws/bin/cfn-init -v ",
                                 "        --stack ",
                                 {
@@ -872,11 +917,9 @@
                                 "        --resource MetaNodeLaunchConfiguration ",
                                 "        --configsets SetupNode",
                                 "\n",
-                                "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
-                                "\n",
                                 "ASG_NAME=$( aws ec2 describe-tags",
                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
-                                "        --query \"Tags[?Key=='aws:autoscaling:groupName'].Value\"",
+                                "        --query \"Tags[?Key=='aws:cloudformation:logical-id'].Value\"",
                                 "        --output text )",
                                 "\n",
                                 "# Signal the status from cfn-init\n",
@@ -946,7 +989,7 @@
                         }
                     ]
                 },
-                "Size": 20,
+                "Size": 25,
                 "VolumeType": "gp2",
                 "Encrypted": true
             },
@@ -1005,6 +1048,11 @@
                         "PropagateAtLaunch": true
                     },
                     {
+                        "Key": "Name",
+                        "Value": "meta-0",
+                        "PropagateAtLaunch": true
+                    },
+                    {
                         "Key": "influxdb-leader",
                         "Value": "true",
                         "PropagateAtLaunch": true
@@ -1014,7 +1062,7 @@
             "CreationPolicy": {
                 "ResourceSignal": {
                     "Count": "1",
-                    "Timeout": "PT10M"
+                    "Timeout": "PT60M"
                 }
             },
             "UpdatePolicy": {
@@ -1126,13 +1174,18 @@
                             "Ref": "MetaNodeDns01"
                         },
                         "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "meta-01",
+                        "PropagateAtLaunch": true
                     }
                 ]
             },
             "CreationPolicy": {
                 "ResourceSignal": {
                     "Count": "1",
-                    "Timeout": "PT10M"
+                    "Timeout": "PT60M"
                 }
             },
             "UpdatePolicy": {
@@ -1244,13 +1297,18 @@
                             "Ref": "MetaNodeDns02"
                         },
                         "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "meta-2",
+                        "PropagateAtLaunch": true
                     }
                 ]
             },
             "CreationPolicy": {
                 "ResourceSignal": {
                     "Count": "1",
-                    "Timeout": "PT10M"
+                    "Timeout": "PT60M"
                 }
             },
             "UpdatePolicy": {
@@ -1310,20 +1368,18 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "set -x",
+                                            "\n",
                                             "INFLUXDB_HOSTNAME=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "hostnamectl set-hostname $INFLUXDB_HOSTNAME",
+                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\" >> /etc/default/influxdb",
                                             "\n"
                                         ]
                                     ]
                                 }
-                            },
-                            "02_set_influxdb_hostname": {
-                                "command": "echo \"INFLUXDB_HOSTNAME=$HOSTNAME\" >> /etc/default/influxdb"
                             }
                         }
                     },
@@ -1344,7 +1400,7 @@
                                                 "Ref": "Username"
                                             },
                                             "\n",
-                                            "MONITOR_PASSWORK=",
+                                            "MONITOR_PASSWORD=",
                                             {
                                                 "Ref": "Password"
                                             },
@@ -1365,9 +1421,9 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "# If network interface is not attached to this instance, then attach it",
+                                            "set -x",
                                             "\n",
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "# If network interface is not attached to this instance, then attach it",
                                             "\n",
                                             "ENI_ID=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
@@ -1382,7 +1438,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -1413,9 +1469,9 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "# If EBS volume is not attached to this instance, then attach it",
+                                            "set -x",
                                             "\n",
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "# If EBS volume is not attached to this instance, then attach it",
                                             "\n",
                                             "VOLUME_ID=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
@@ -1428,11 +1484,9 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "# TODO: switch to until 'attached' loop",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
-                                            "\n",
-                                            "# Wait until network interface is available",
+                                            "# Wait until volume is available",
                                             "\n",
                                             "aws ec2 wait volume-available",
                                             "        --volume-ids $VOLUME_ID",
@@ -1441,6 +1495,13 @@
                                             "        --volume-id $VOLUME_ID",
                                             "        --instance-id $INSTANCE_ID",
                                             "        --device /dev/xvdh",
+                                            "\n",
+                                            "until [[ \"$(",
+                                            "aws ec2 describe-volume-status",
+                                            "        --volume-id $VOLUME_ID",
+                                            "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
+                                            "        --output text",
+                                            ")\" == 'ok' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -1457,19 +1518,27 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "if [ \"$(lsblk -no FSTYPE /dev/xvdh)\" == \"ext4\" ]; then",
+                                            "set -x",
                                             "\n",
-                                            "mkfs -t ext4 /dev/xvdh",
+                                            "/sbin/ebsnvme-id -b /dev/nvme1n1",
+                                            "\n",
+                                            "until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done",
+                                            "\n",
+                                            "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" != \"ext4\" ]]; then",
+                                            "\n",
+                                            "/usr/sbin/mkfs -t ext4 /dev/xvdh",
+                                            "\n",
+                                            "sleep 10",
                                             "\n",
                                             "fi",
                                             "\n",
-                                            "mkdir /influxdb",
+                                            "mkdir -p /influxdb",
                                             "\n",
                                             "mount /dev/xvdh /influxdb",
                                             "\n",
                                             "/sbin/resize2fs /dev/xvdh",
                                             "\n",
-                                            "mkdir /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
+                                            "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
                                             "chown -R influxdb:influxdb /influxdb",
                                             "\n"
@@ -1482,9 +1551,21 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
+                                            "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
+                                            "\n",
+                                            "if grep -q \"$DEVICE_UUID\" /etc/fstab; then",
+                                            "\n",
+                                            "echo \"fstab already set\"",
+                                            "\n",
+                                            "else",
+                                            "\n",
                                             "cp /etc/fstab /etc/fstab.original",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "\n",
+                                            "fi",
                                             "\n"
                                         ]
                                     ]
@@ -1585,9 +1666,14 @@
                         "Fn::Join": [
                             "",
                             [
-                                "#!/usr/bin/env bash\n",
-                                "set -euxo pipefail\n",
-                                "yum update -y aws-cfn-bootstrap ec2-net-utils\n",
+                                "#!/usr/bin/env bash",
+                                "\n",
+                                "set -euxo pipefail",
+                                "\n",
+                                "yum update -y aws-cfn-bootstrap ec2-net-utils",
+                                "\n",
+                                "export INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                "\n",
                                 "/opt/aws/bin/cfn-init -v ",
                                 "        --stack ",
                                 {
@@ -1600,11 +1686,9 @@
                                 "        --resource DataNodeLaunchConfiguration ",
                                 "        --configsets SetupNode",
                                 "\n",
-                                "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
-                                "\n",
                                 "ASG_NAME=$( aws ec2 describe-tags",
                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
-                                "        --query \"Tags[?Key=='aws:autoscaling:groupName'].Value\"",
+                                "        --query \"Tags[?Key=='aws:cloudformation:logical-id'].Value\"",
                                 "        --output text )",
                                 "\n",
                                 "# Signal the status from cfn-init\n",
@@ -1730,13 +1814,18 @@
                             "Ref": "DataNodeDns03"
                         },
                         "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "data-3",
+                        "PropagateAtLaunch": true
                     }
                 ]
             },
             "CreationPolicy": {
                 "ResourceSignal": {
                     "Count": "1",
-                    "Timeout": "PT10M"
+                    "Timeout": "PT60M"
                 }
             },
             "UpdatePolicy": {
@@ -1853,13 +1942,18 @@
                             "Ref": "DataNodeDns04"
                         },
                         "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "data-4",
+                        "PropagateAtLaunch": true
                     }
                 ]
             },
             "CreationPolicy": {
                 "ResourceSignal": {
                     "Count": "1",
-                    "Timeout": "PT10M"
+                    "Timeout": "PT60M"
                 }
             },
             "UpdatePolicy": {
@@ -1880,11 +1974,14 @@
                             "SetAWSCLIRegion",
                             "SetHostnames",
                             "SetMonitor",
+                            "SetKapacitor",
                             "AttachNetwork",
                             "AttachVolume",
                             "MountVolume",
                             "UpdateInfluxDB",
                             "UpdateTelegraf",
+                            "UpdateChronograf",
+                            "UpdateKapacitor",
                             "StartInfluxDB",
                             "StartTelegraf",
                             "StartChronograf",
@@ -1911,20 +2008,18 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "set -x",
+                                            "\n",
                                             "INFLUXDB_HOSTNAME=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
                                             "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "hostnamectl set-hostname $INFLUXDB_HOSTNAME",
+                                            "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\" >> /etc/default/influxdb",
                                             "\n"
                                         ]
                                     ]
                                 }
-                            },
-                            "02_set_influxdb_hostname": {
-                                "command": "echo \"INFLUXDB_HOSTNAME=$HOSTNAME\" >> /etc/default/influxdb"
                             }
                         }
                     },
@@ -1945,7 +2040,43 @@
                                                 "Ref": "Username"
                                             },
                                             "\n",
-                                            "MONITOR_PASSWORK=",
+                                            "MONITOR_PASSWORD=",
+                                            {
+                                                "Ref": "Password"
+                                            },
+                                            "\n"
+                                        ]
+                                    ]
+                                },
+                                "mode": "000644",
+                                "owner": "root",
+                                "group": "root"
+                            }
+                        }
+                    },
+                    "SetKapacitor": {
+                        "files": {
+                            "/etc/default/kapacitor": {
+                                "content": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "KAPACITOR_INFLUXDB_0_URLS_0=",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
+                                            "\n",
+                                            "KAPACITOR_INFLUXDB_0_NAME=",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
+                                            "\n",
+                                            "KAPACITOR_INFLUXDB_0_USERNAME=",
+                                            {
+                                                "Ref": "Username"
+                                            },
+                                            "\n",
+                                            "KAPACITOR_INFLUXDB_0_PASSWORD=",
                                             {
                                                 "Ref": "Password"
                                             },
@@ -1966,9 +2097,9 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "# If network interface is not attached to this instance, then attach it",
+                                            "set -x",
                                             "\n",
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "# If network interface is not attached to this instance, then attach it",
                                             "\n",
                                             "ENI_ID=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
@@ -1983,7 +2114,7 @@
                                             "\n",
                                             "# TODO: switch to until 'attached' loop",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
                                             "# Wait until network interface is available",
                                             "\n",
@@ -2014,9 +2145,9 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "# If EBS volume is not attached to this instance, then attach it",
+                                            "set -x",
                                             "\n",
-                                            "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                            "# If EBS volume is not attached to this instance, then attach it",
                                             "\n",
                                             "VOLUME_ID=$( aws ec2 describe-tags",
                                             "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
@@ -2029,11 +2160,9 @@
                                             "        --query \"Volumes[0].Attachments[0].State\"",
                                             "        --output text )",
                                             "\n",
-                                            "# TODO: switch to until 'attached' loop",
+                                            "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
                                             "\n",
-                                            "if [ $STATUS != 'attached' ]; then",
-                                            "\n",
-                                            "# Wait until network interface is available",
+                                            "# Wait until volume is available",
                                             "\n",
                                             "aws ec2 wait volume-available",
                                             "        --volume-ids $VOLUME_ID",
@@ -2042,6 +2171,13 @@
                                             "        --volume-id $VOLUME_ID",
                                             "        --instance-id $INSTANCE_ID",
                                             "        --device /dev/xvdh",
+                                            "\n",
+                                            "until [[ \"$(",
+                                            "aws ec2 describe-volume-status",
+                                            "        --volume-id $VOLUME_ID",
+                                            "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
+                                            "        --output text",
+                                            ")\" == 'ok' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -2058,23 +2194,29 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "if [ \"$(lsblk -no FSTYPE /dev/xvdh)\" == \"ext4\" ]; then",
+                                            "set -x",
                                             "\n",
-                                            "mkfs -t ext4 /dev/xvdh",
+                                            "/sbin/ebsnvme-id -b /dev/nvme1n1",
+                                            "\n",
+                                            "until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done",
+                                            "\n",
+                                            "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" != \"ext4\" ]]; then",
+                                            "\n",
+                                            "/usr/sbin/mkfs -t ext4 /dev/xvdh",
+                                            "\n",
+                                            "sleep 10",
                                             "\n",
                                             "fi",
                                             "\n",
-                                            "mkdir /influxdb",
+                                            "mkdir -p /influxdb",
                                             "\n",
                                             "mount /dev/xvdh /influxdb",
                                             "\n",
                                             "/sbin/resize2fs /dev/xvdh",
                                             "\n",
-                                            "mkdir /influxdb/meta /influxdb /influxdb/wal /influxdb/hh /influxdb/kapacitor",
+                                            "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
                                             "chown -R influxdb:influxdb /influxdb",
-                                            "\n",
-                                            "chown -R kapacitor:kapacitor /influxdb/kapacitor",
                                             "\n"
                                         ]
                                     ]
@@ -2085,9 +2227,21 @@
                                     "Fn::Join": [
                                         "",
                                         [
+                                            "set -x",
+                                            "\n",
+                                            "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
+                                            "\n",
+                                            "if grep -q \"$DEVICE_UUID\" /etc/fstab; then",
+                                            "\n",
+                                            "echo \"fstab already set\"",
+                                            "\n",
+                                            "else",
+                                            "\n",
                                             "cp /etc/fstab /etc/fstab.original",
                                             "\n",
-                                            "echo -e \"/dev/xvdh\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                            "\n",
+                                            "fi",
                                             "\n"
                                         ]
                                     ]
@@ -2099,17 +2253,17 @@
                         "commands": {
                             "01_download_influxdb": {
                                 "command": {
-                                    "Fn::Sub": "curl -s https://dl.influxdata.com/enterprise/releases/influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm --output influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                    "Fn::Sub": "curl -s https://dl.influxdata.com/influxdb/releases/influxdb-${InfluxDBVersion}.x86_64.rpm --output influxdb-${InfluxDBVersion}.x86_64.rpm"
                                 }
                             },
                             "02_install_influxdb": {
                                 "command": {
-                                    "Fn::Sub": "yum localinstall -y -q influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                    "Fn::Sub": "yum localinstall -y -q influxdb-${InfluxDBVersion}.x86_64.rpm"
                                 }
                             },
                             "03_remove_package_file": {
                                 "command": {
-                                    "Fn::Sub": "rm influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
+                                    "Fn::Sub": "rm influxdb-${InfluxDBVersion}.x86_64.rpm"
                                 }
                             }
                         }
@@ -2129,6 +2283,63 @@
                             "03_remove_package_file": {
                                 "command": {
                                     "Fn::Sub": "rm telegraf-${TelegrafVersion}-1.x86_64.rpm"
+                                }
+                            }
+                        }
+                    },
+                    "UpdateChronograf": {
+                        "commands": {
+                            "01_download_chrongoraf": {
+                                "command": "curl -s https://dl.influxdata.com/chronograf/releases/chronograf-1.7.12.x86_64.rpm --output chronograf-1.7.12.x86_64.rpm"
+                            },
+                            "02_install_chronograf": {
+                                "command": "yum localinstall -y -q chronograf-1.7.12.x86_64.rpm"
+                            },
+                            "03_remove_package_file": {
+                                "command": "rm chronograf-1.7.12.x86_64.rpm"
+                            },
+                            "04_setup_chronograf_service": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "rm -r /etc/init.d/chronograf",
+                                            "cp -f /usr/lib/chronograf/scripts/chronograf.service /usr/lib/systemd/system/chronograf.service",
+                                            "chown root:root /usr/lib/systemd/system/chronograf.service",
+                                            "chmod 644 /usr/lib/systemd/system/chronograf.service",
+                                            "systemctl daemon-reload || true"
+                                        ]
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "UpdateKapacitor": {
+                        "commands": {
+                            "01_download_kapacitor": {
+                                "command": "curl -s https://dl.influxdata.com/kapacitor/releases/kapacitor-1.5.3.x86_64.rpm --output kapacitor-1.5.3.x86_64.rpm"
+                            },
+                            "02_install_kapacitor": {
+                                "command": "yum localinstall -y -q kapacitor-1.5.3.x86_64.rpm"
+                            },
+                            "03_remove_package_file": {
+                                "command": "rm kapacitor-1.5.3.x86_64.rpm"
+                            },
+                            "04_setup_kapacitor_service": {
+                                "command": {
+                                    "Fn::Join": [
+                                        "",
+                                        [
+                                            "rm -r /etc/init.d/kapacitor",
+                                            "cp -f /usr/lib/kapacitor/scripts/chronograf.service /usr/lib/systemd/system/kapacitor.service",
+                                            "chown root:root /usr/lib/systemd/system/kapacitor.service",
+                                            "chmod 644 /usr/lib/systemd/system/kapacitor.service",
+                                            "chown -R kapacitor:kapacitor /var/log/kapacitor",
+                                            "mkdir -p /influxdb/kapacitor",
+                                            "chown -R kapacitor:kapacitor /influxdb/kapacitor",
+                                            "systemctl daemon-reload || true"
+                                        ]
+                                    ]
                                 }
                             }
                         }
@@ -2169,7 +2380,7 @@
                                 "command": "systemctl enable kapacitor"
                             },
                             "02_start_kapacitor_service": {
-                                "command": "systemctl start kapacitor"
+                                "command": "service kapacitor start"
                             }
                         }
                     },
@@ -2180,7 +2391,9 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "curl -s -u ",
+                                            "set -x",
+                                            "\n",
+                                            "curl -u ",
                                             {
                                                 "Ref": "Username"
                                             },
@@ -2193,7 +2406,7 @@
                                                 "Ref": "MonitorDns"
                                             },
                                             ":8086/query\"",
-                                            "        --data-urlencode 'q=\"",
+                                            "        --data-urlencode \"q=",
                                             "CREATE USER ",
                                             {
                                                 "Ref": "Username"
@@ -2203,7 +2416,22 @@
                                                 "Ref": "Password"
                                             },
                                             "' WITH ALL PRIVILEGES",
-                                            "\"'",
+                                            "\"",
+                                            "\n",
+                                            "curl -u ",
+                                            {
+                                                "Ref": "Username"
+                                            },
+                                            ":",
+                                            {
+                                                "Ref": "Password"
+                                            },
+                                            " http://",
+                                            {
+                                                "Ref": "MonitorDns"
+                                            },
+                                            ":8086/query",
+                                            "        --data-urlencode 'q=CREATE DATABASE telegraf WITH DURATION 30d SHARD DURATION 7d",
                                             "\n"
                                         ]
                                     ]
@@ -2220,7 +2448,7 @@
                         {
                             "Ref": "AWS::Region"
                         },
-                        "Data"
+                        "Monitor"
                     ]
                 },
                 "InstanceType": {
@@ -2237,7 +2465,6 @@
                 "KeyName": {
                     "Ref": "KeyName"
                 },
-                "EbsOptimized": true,
                 "IamInstanceProfile": {
                     "Ref": "InfluxDBInstanceProfile"
                 },
@@ -2246,9 +2473,14 @@
                         "Fn::Join": [
                             "",
                             [
-                                "#!/usr/bin/env bash\n",
-                                "set -euxo pipefail\n",
-                                "yum update -y aws-cfn-bootstrap ec2-net-utils\n",
+                                "#!/usr/bin/env bash",
+                                "\n",
+                                "set -euxo pipefail",
+                                "\n",
+                                "yum update -y aws-cfn-bootstrap ec2-net-utils",
+                                "\n",
+                                "export INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                                "\n",
                                 "/opt/aws/bin/cfn-init -v ",
                                 "        --stack ",
                                 {
@@ -2261,11 +2493,9 @@
                                 "        --resource MonitorLaunchConfiguration ",
                                 "        --configsets SetupNode",
                                 "\n",
-                                "INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
-                                "\n",
                                 "ASG_NAME=$( aws ec2 describe-tags",
                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
-                                "        --query \"Tags[?Key=='aws:autoscaling:groupName'].Value\"",
+                                "        --query \"Tags[?Key=='aws:cloudformation:logical-id'].Value\"",
                                 "        --output text )",
                                 "\n",
                                 "# Signal the status from cfn-init\n",
@@ -2335,7 +2565,7 @@
                         }
                     ]
                 },
-                "Size": 50,
+                "Size": 100,
                 "VolumeType": "gp2",
                 "Encrypted": true
             },
@@ -2386,13 +2616,18 @@
                             "Ref": "MonitorDns"
                         },
                         "PropagateAtLaunch": true
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "monitor",
+                        "PropagateAtLaunch": true
                     }
                 ]
             },
             "CreationPolicy": {
                 "ResourceSignal": {
                     "Count": "1",
-                    "Timeout": "PT10M"
+                    "Timeout": "PT60M"
                 }
             },
             "UpdatePolicy": {

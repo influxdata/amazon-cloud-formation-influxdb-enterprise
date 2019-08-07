@@ -198,9 +198,9 @@
     "Mappings": {
         "AMIRegionMap": {
             "us-east-1": {
-                "Data": "ami-0777bac81a228d764",
-                "Meta": "ami-0a356f4c9468a6f8a",
-                "Monitor": "ami-0b0af8c2b43f4a937"
+                "Data": "ami-087ff8f63cf64a51c",
+                "Meta": "ami-02d0a6f086f875094",
+                "Monitor": "ami-029d01bab50d036c0"
             }
         }
     },
@@ -2412,16 +2412,17 @@
                                                 "Ref": "MonitorDns"
                                             },
                                             ":8086/query\"",
-                                            "        --data-urlencode 'q=",
+                                            "        --data-urlencode \"q=",
                                             "CREATE USER ",
                                             {
                                                 "Ref": "Username"
                                             },
-                                            " WITH PASSWORD \\'",
+                                            " WITH PASSWORD '",
                                             {
                                                 "Ref": "Password"
                                             },
-                                            "\\' WITH ALL PRIVILEGES'",
+                                            "' WITH ALL PRIVILEGES",
+                                            "\"",
                                             "\n",
                                             "curl -u ",
                                             {
