@@ -43,5 +43,6 @@ IFS=$'\n' aws cloudformation deploy \
         Username="${influxdb_username}" \
         Password="${influxdb_password}" \
         KeyName="${ssh_key_name}" \
+        InfluxDBIngressCIDR="${ssh_location}" \
         SSHLocation="${ssh_location}" \
         LicenseKey="${license_key}"

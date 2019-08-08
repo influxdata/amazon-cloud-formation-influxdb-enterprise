@@ -12,6 +12,7 @@
                         "VpcId",
                         "Subnets",
                         "AvailabilityZones",
+                        "InfluxDBIngressCIDR",
                         "KeyName",
                         "SSHLocation"
                     ]
@@ -42,6 +43,9 @@
                 },
                 "KeyName": {
                     "default": "SSH Key Name"
+                },
+                "InfluxDBIngressCIDR": {
+                    "default": "InfluxDB ingress CIDR (Public IPv4 address range of InfluxDB users)"
                 },
                 "SSHLocation": {
                     "default": "SSH Access CIDR (Public IPv4 address range of the administrator's network)"
@@ -167,6 +171,14 @@
             "Type": "AWS::EC2::KeyPair::KeyName",
             "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
         },
+        "InfluxDBIngressCIDR": {
+            "Description": "The IP address range that can be used to connect to the InfluxDB API endpoint",
+            "Type": "String",
+            "MinLength": "9",
+            "MaxLength": "18",
+            "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+        },
         "SSHLocation": {
             "Description": "The IP address range that can be used to SSH to the EC2 instances",
             "Type": "String",
@@ -184,14 +196,27 @@
                     "InfluxDBLoadBalancer",
                     "DNSName"
                 ]
+            },
+            "Export": {
+                "Name": {
+                    "Fn::Join": [
+                        ":",
+                        [
+                            {
+                                "Ref": "AWS::StackName"
+                            },
+                            "InfluxDBAPIEndpoint"
+                        ]
+                    ]
+                }
             }
         }
     },
     "Mappings": {
         "AMIRegionMap": {
             "us-east-1": {
-                "Data": "ami-09a610575675773db",
-                "Meta": "ami-03878cb65608d4059",
+                "Data": "ami-087ff8f63cf64a51c",
+                "Meta": "ami-02d0a6f086f875094",
                 "Monitor": "ami-029d01bab50d036c0"
             }
         }
@@ -352,7 +377,9 @@
                         "IpProtocol": "tcp",
                         "FromPort": 8086,
                         "ToPort": 8086,
-                        "CidrIp": "0.0.0.0/0"
+                        "CidrIp": {
+                            "Ref": "InfluxDBIngressCIDR"
+                        }
                     }
                 ],
                 "VpcId": {
@@ -798,7 +825,13 @@
                                             "        --query \"Tags[?Key=='influxdb-leader'].Value\"",
                                             "        --output text )",
                                             "\n",
-                                            "if [[ \"$LEADER == 'true'\" ]]; then",
+                                            "if [[ $LEADER == 'true' ]]; then",
+                                            "\n",
+                                            "while [[ \"$(curl -s -o /dev/null -w ''%{http_code}'' ",
+                                            {
+                                                "Ref": "MetaNodeDns00"
+                                            },
+                                            ":8091/status)\" != '200' ]]; do sleep 5; done",
                                             "\n",
                                             "influxd-ctl add-meta ",
                                             {
@@ -973,7 +1006,7 @@
                 "HostedZoneId": {
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
-                "Name": "data-0.influxdb.internal",
+                "Name": "meta-0.influxdb.internal",
                 "Type": "A",
                 "TTL": "60"
             }
@@ -991,6 +1024,7 @@
                 },
                 "Size": 25,
                 "VolumeType": "gp2",
+                "AutoEnableIO": true,
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1020,11 +1054,6 @@
                 "DesiredCapacity": "1",
                 "MinSize": "0",
                 "MaxSize": "1",
-                "TargetGroupARNs": [
-                    {
-                        "Ref": "InfluxDBLoadBalancerTargetGroup"
-                    }
-                ],
                 "Tags": [
                     {
                         "Key": "influxdb-eni",
@@ -1107,7 +1136,7 @@
                 "HostedZoneId": {
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
-                "Name": "data-1.influxdb.internal",
+                "Name": "meta-1.influxdb.internal",
                 "Type": "A",
                 "TTL": "60"
             }
@@ -1125,6 +1154,7 @@
                 },
                 "Size": 20,
                 "VolumeType": "gp2",
+                "AutoEnableIO": true,
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1148,11 +1178,6 @@
                 "DesiredCapacity": "1",
                 "MinSize": "0",
                 "MaxSize": "1",
-                "TargetGroupARNs": [
-                    {
-                        "Ref": "InfluxDBLoadBalancerTargetGroup"
-                    }
-                ],
                 "Tags": [
                     {
                         "Key": "influxdb-eni",
@@ -1230,7 +1255,7 @@
                 "HostedZoneId": {
                     "Ref": "InfluxDBPrivateHostedZone"
                 },
-                "Name": "data-2.influxdb.internal",
+                "Name": "meta-2.influxdb.internal",
                 "Type": "A",
                 "TTL": "60"
             }
@@ -1248,6 +1273,7 @@
                 },
                 "Size": 20,
                 "VolumeType": "gp2",
+                "AutoEnableIO": true,
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1271,11 +1297,6 @@
                 "DesiredCapacity": "1",
                 "MinSize": "0",
                 "MaxSize": "1",
-                "TargetGroupARNs": [
-                    {
-                        "Ref": "InfluxDBLoadBalancerTargetGroup"
-                    }
-                ],
                 "Tags": [
                     {
                         "Key": "influxdb-eni",
@@ -1765,6 +1786,7 @@
                 "Iops": {
                     "Ref": "DataNodeDiskIops"
                 },
+                "AutoEnableIO": true,
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -1893,6 +1915,7 @@
                 "Iops": {
                     "Ref": "DataNodeDiskIops"
                 },
+                "AutoEnableIO": true,
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -2304,10 +2327,15 @@
                                         "",
                                         [
                                             "rm -r /etc/init.d/chronograf",
+                                            "\n",
                                             "cp -f /usr/lib/chronograf/scripts/chronograf.service /usr/lib/systemd/system/chronograf.service",
+                                            "\n",
                                             "chown root:root /usr/lib/systemd/system/chronograf.service",
+                                            "\n",
                                             "chmod 644 /usr/lib/systemd/system/chronograf.service",
-                                            "systemctl daemon-reload || true"
+                                            "\n",
+                                            "systemctl daemon-reload || true",
+                                            "\n"
                                         ]
                                     ]
                                 }
@@ -2331,13 +2359,21 @@
                                         "",
                                         [
                                             "rm -r /etc/init.d/kapacitor",
+                                            "\n",
                                             "cp -f /usr/lib/kapacitor/scripts/chronograf.service /usr/lib/systemd/system/kapacitor.service",
+                                            "\n",
                                             "chown root:root /usr/lib/systemd/system/kapacitor.service",
+                                            "\n",
                                             "chmod 644 /usr/lib/systemd/system/kapacitor.service",
+                                            "\n",
                                             "chown -R kapacitor:kapacitor /var/log/kapacitor",
+                                            "\n",
                                             "mkdir -p /influxdb/kapacitor",
+                                            "\n",
                                             "chown -R kapacitor:kapacitor /influxdb/kapacitor",
-                                            "systemctl daemon-reload || true"
+                                            "\n",
+                                            "systemctl daemon-reload || true",
+                                            "\n"
                                         ]
                                     ]
                                 }
@@ -2393,6 +2429,12 @@
                                         [
                                             "set -x",
                                             "\n",
+                                            "# Wait until InfluxDB monitor is listening",
+                                            "\n",
+                                            "while [[ \"",
+                                            "$(curl -s -o /dev/null -w ''%{http_code}'' monitor.influxdb.internal:8086/ping)",
+                                            "\" != '204' ]]; do sleep 5; done",
+                                            "\n",
                                             "curl -u ",
                                             {
                                                 "Ref": "Username"
@@ -2431,7 +2473,7 @@
                                                 "Ref": "MonitorDns"
                                             },
                                             ":8086/query",
-                                            "        --data-urlencode 'q=CREATE DATABASE telegraf WITH DURATION 30d SHARD DURATION 7d",
+                                            "        --data-urlencode 'q=CREATE DATABASE telegraf WITH DURATION 30d SHARD DURATION 7d'",
                                             "\n"
                                         ]
                                     ]
@@ -2567,6 +2609,7 @@
                 },
                 "Size": 100,
                 "VolumeType": "gp2",
+                "AutoEnableIO": true,
                 "Encrypted": true
             },
             "DeletionPolicy": "Snapshot"
@@ -2590,11 +2633,6 @@
                 "DesiredCapacity": "1",
                 "MinSize": "0",
                 "MaxSize": "1",
-                "TargetGroupARNs": [
-                    {
-                        "Ref": "InfluxDBLoadBalancerTargetGroup"
-                    }
-                ],
                 "Tags": [
                     {
                         "Key": "influxdb-eni",
