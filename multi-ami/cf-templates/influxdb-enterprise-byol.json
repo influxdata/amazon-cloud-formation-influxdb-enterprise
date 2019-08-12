@@ -686,9 +686,9 @@
                                             "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
                                             "        --volume-id $VOLUME_ID",
-                                            "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
+                                            "        --query 'VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'",
                                             "        --output text",
-                                            ")\" == 'ok' ]]; do sleep 5; done",
+                                            ")\" == 'passed' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -912,7 +912,7 @@
                         {
                             "Ref": "AWS::Region"
                         },
-                        "Data"
+                        "Meta"
                     ]
                 },
                 "InstanceType": {
@@ -1526,9 +1526,9 @@
                                             "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
                                             "        --volume-id $VOLUME_ID",
-                                            "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
+                                            "        --query 'VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'",
                                             "        --output text",
-                                            ")\" == 'ok' ]]; do sleep 5; done",
+                                            ")\" == 'passed' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -2090,11 +2090,11 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "KAPACITOR_INFLUXDB_0_URLS_0=",
+                                            "KAPACITOR_INFLUXDB_0_URLS_0=http://",
                                             {
                                                 "Ref": "MonitorDns"
                                             },
-                                            "\n",
+                                            ":8086\n",
                                             "KAPACITOR_INFLUXDB_0_NAME=",
                                             {
                                                 "Ref": "MonitorDns"
@@ -2204,9 +2204,9 @@
                                             "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
                                             "        --volume-id $VOLUME_ID",
-                                            "        --query 'VolumeStatuses[0].VolumeStatus.Status'",
+                                            "        --query 'VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'",
                                             "        --output text",
-                                            ")\" == 'ok' ]]; do sleep 5; done",
+                                            ")\" == 'passed' ]]; do sleep 5; done",
                                             "\n",
                                             "fi",
                                             "\n"

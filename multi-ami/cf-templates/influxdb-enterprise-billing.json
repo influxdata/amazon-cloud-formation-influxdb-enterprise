@@ -905,7 +905,7 @@
                         {
                             "Ref": "AWS::Region"
                         },
-                        "Data"
+                        "Meta"
                     ]
                 },
                 "InstanceType": {
@@ -2084,11 +2084,11 @@
                                     "Fn::Join": [
                                         "",
                                         [
-                                            "KAPACITOR_INFLUXDB_0_URLS_0=",
+                                            "KAPACITOR_INFLUXDB_0_URLS_0=http://",
                                             {
                                                 "Ref": "MonitorDns"
                                             },
-                                            "\n",
+                                            ":8086\n",
                                             "KAPACITOR_INFLUXDB_0_NAME=",
                                             {
                                                 "Ref": "MonitorDns"
