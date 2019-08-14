@@ -376,25 +376,6 @@
                 ]
             }
         },
-        "InfluxDBALBSecurityGroup": {
-            "Type": "AWS::EC2::SecurityGroup",
-            "Properties": {
-                "GroupDescription": "Allow public traffic on port 8086 for InfluxDB",
-                "SecurityGroupIngress": [
-                    {
-                        "IpProtocol": "tcp",
-                        "FromPort": 8086,
-                        "ToPort": 8086,
-                        "CidrIp": {
-                            "Ref": "InfluxDBIngressCIDR"
-                        }
-                    }
-                ],
-                "VpcId": {
-                    "Ref": "VpcId"
-                }
-            }
-        },
         "SshSecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
@@ -414,20 +395,55 @@
                 }
             }
         },
-        "InfluxDBInternalSecurityGroup": {
+        "InfluxDBALBSecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
-                "GroupDescription": "Allow traffic on ports for InfluxDB between nodes",
+                "GroupDescription": "Allow traffic from public internet to go to port 8086 on InfluxDB data nodes",
                 "VpcId": {
                     "Ref": "VpcId"
                 }
             }
         },
-        "InfluxDBSGIngressALB": {
+        "InfluxDBALBSGIngress": {
             "Type": "AWS::EC2::SecurityGroupIngress",
             "Properties": {
                 "GroupId": {
-                    "Ref": "InfluxDBInternalSecurityGroup"
+                    "Ref": "InfluxDBALBSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 8086,
+                "ToPort": 8086,
+                "CidrIp": "0.0.0.0/0"
+            }
+        },
+        "InfluxDBALBSGEgress": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "Properties":{
+                "GroupId": {
+                    "Ref": "InfluxDBALBSecurityGroup"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": 8086,
+                "ToPort": 8086,
+                "DestinationSecurityGroupId": {
+                    "Ref": "InfluxDBDataNodeSecurityGroup"
+                }
+            }
+        },
+        "InfluxDBDataNodeSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Allow traffic from ALB to go to port 8086 on InfluxDB data nodes",
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            }
+        },
+        "InfluxDBDataNodeSGIngress": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "InfluxDBDataNodeSecurityGroup"
                 },
                 "IpProtocol": "tcp",
                 "FromPort": 8086,
@@ -437,72 +453,35 @@
                 }
             }
         },
-        "InfluxDBSGIngressICMP": {
+        "InfluxDBInternalSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Allow all traffic between InfluxDB instances",
+                "VpcId": {
+                    "Ref": "VpcId"
+                }
+            }
+        },
+        "InfluxDBInternalSGIngress": {
             "Type": "AWS::EC2::SecurityGroupIngress",
             "Properties": {
                 "GroupId": {
                     "Ref": "InfluxDBInternalSecurityGroup"
                 },
-                "IpProtocol": "icmp",
-                "FromPort": -1,
-                "ToPort": -1,
+                "IpProtocol" : "-1",
                 "SourceSecurityGroupId": {
                     "Ref": "InfluxDBInternalSecurityGroup"
                 }
             }
         },
-        "InfluxDBSGIngress8086": {
-            "Type": "AWS::EC2::SecurityGroupIngress",
-            "Properties": {
+        "InfluxDBInternalSGEgress": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "Properties":{
                 "GroupId": {
                     "Ref": "InfluxDBInternalSecurityGroup"
                 },
-                "IpProtocol": "tcp",
-                "FromPort": 8086,
-                "ToPort": 8086,
-                "SourceSecurityGroupId": {
-                    "Ref": "InfluxDBInternalSecurityGroup"
-                }
-            }
-        },
-        "InfluxDBSGI8088": {
-            "Type": "AWS::EC2::SecurityGroupIngress",
-            "Properties": {
-                "GroupId": {
-                    "Ref": "InfluxDBInternalSecurityGroup"
-                },
-                "IpProtocol": "tcp",
-                "FromPort": 8088,
-                "ToPort": 8088,
-                "SourceSecurityGroupId": {
-                    "Ref": "InfluxDBInternalSecurityGroup"
-                }
-            }
-        },
-        "InfluxDBSGI8089": {
-            "Type": "AWS::EC2::SecurityGroupIngress",
-            "Properties": {
-                "GroupId": {
-                    "Ref": "InfluxDBInternalSecurityGroup"
-                },
-                "IpProtocol": "tcp",
-                "FromPort": 8089,
-                "ToPort": 8089,
-                "SourceSecurityGroupId": {
-                    "Ref": "InfluxDBInternalSecurityGroup"
-                }
-            }
-        },
-        "InfluxDBSGI8091": {
-            "Type": "AWS::EC2::SecurityGroupIngress",
-            "Properties": {
-                "GroupId": {
-                    "Ref": "InfluxDBInternalSecurityGroup"
-                },
-                "IpProtocol": "tcp",
-                "FromPort": 8091,
-                "ToPort": 8091,
-                "SourceSecurityGroupId": {
+                "IpProtocol" : "-1",
+                "DestinationSecurityGroupId": {
                     "Ref": "InfluxDBInternalSecurityGroup"
                 }
             }
@@ -1679,6 +1658,9 @@
                     },
                     {
                         "Ref": "InfluxDBInternalSecurityGroup"
+                    },
+                    {
+                        "Ref": "InfluxDBDataNodeSecurityGroup"
                     }
                 ],
                 "KeyName": {
