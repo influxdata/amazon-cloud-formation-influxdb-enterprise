@@ -223,9 +223,9 @@
     "Mappings": {
         "AMIRegionMap": {
             "us-east-1": {
-                "Data": "ami-008f7c5091fac913b",
-                "Meta": "ami-093482b436bfdafe8",
-                "Monitor": "ami-0b0af8c2b43f4a937"
+                "Data": "ami-087ff8f63cf64a51c",
+                "Meta": "ami-01f4a0c2d4309c347",
+                "Monitor": "ami-09293eb6f6d59e3ed"
             }
         }
     },
@@ -418,7 +418,7 @@
         },
         "InfluxDBALBSGEgress": {
             "Type": "AWS::EC2::SecurityGroupEgress",
-            "Properties":{
+            "Properties": {
                 "GroupId": {
                     "Ref": "InfluxDBALBSecurityGroup"
                 },
@@ -468,7 +468,7 @@
                 "GroupId": {
                     "Ref": "InfluxDBInternalSecurityGroup"
                 },
-                "IpProtocol" : "-1",
+                "IpProtocol": "-1",
                 "SourceSecurityGroupId": {
                     "Ref": "InfluxDBInternalSecurityGroup"
                 }
@@ -476,11 +476,11 @@
         },
         "InfluxDBInternalSGEgress": {
             "Type": "AWS::EC2::SecurityGroupEgress",
-            "Properties":{
+            "Properties": {
                 "GroupId": {
                     "Ref": "InfluxDBInternalSecurityGroup"
                 },
-                "IpProtocol" : "-1",
+                "IpProtocol": "-1",
                 "DestinationSecurityGroupId": {
                     "Ref": "InfluxDBInternalSecurityGroup"
                 }
@@ -499,8 +499,6 @@
                             "AttachNetwork",
                             "AttachVolume",
                             "MountVolume",
-                            "UpdateInfluxDB",
-                            "UpdateTelegraf",
                             "StartInfluxDB",
                             "StartTelegraf",
                             "ConfigureCluster"
@@ -735,44 +733,6 @@
                                             "\n"
                                         ]
                                     ]
-                                }
-                            }
-                        }
-                    },
-                    "UpdateInfluxDB": {
-                        "commands": {
-                            "01_download_influxdb": {
-                                "command": {
-                                    "Fn::Sub": "curl -s https://dl.influxdata.com/enterprise/releases/influxdb-meta-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm --output influxdb-meta-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            },
-                            "02_install_influxdb": {
-                                "command": {
-                                    "Fn::Sub": "yum localinstall -y -q influxdb-meta-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            },
-                            "03_remove_package_file": {
-                                "command": {
-                                    "Fn::Sub": "rm influxdb-meta-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            }
-                        }
-                    },
-                    "UpdateTelegraf": {
-                        "commands": {
-                            "01_download_telegraf": {
-                                "command": {
-                                    "Fn::Sub": "curl -s https://dl.influxdata.com/telegraf/releases/telegraf-${TelegrafVersion}-1.x86_64.rpm --output telegraf-${TelegrafVersion}-1.x86_64.rpm"
-                                }
-                            },
-                            "02_install_telegraf": {
-                                "command": {
-                                    "Fn::Sub": "yum localinstall -y -q telegraf-${TelegrafVersion}-1.x86_64.rpm"
-                                }
-                            },
-                            "03_remove_package_file": {
-                                "command": {
-                                    "Fn::Sub": "rm telegraf-${TelegrafVersion}-1.x86_64.rpm"
                                 }
                             }
                         }
@@ -1340,8 +1300,6 @@
                             "AttachNetwork",
                             "AttachVolume",
                             "MountVolume",
-                            "UpdateInfluxDB",
-                            "UpdateTelegraf",
                             "StartInfluxDB",
                             "StartTelegraf"
                         ]
@@ -1575,44 +1533,6 @@
                                             "\n"
                                         ]
                                     ]
-                                }
-                            }
-                        }
-                    },
-                    "UpdateInfluxDB": {
-                        "commands": {
-                            "01_download_influxdb": {
-                                "command": {
-                                    "Fn::Sub": "curl -s https://dl.influxdata.com/enterprise/releases/influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm --output influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            },
-                            "02_install_influxdb": {
-                                "command": {
-                                    "Fn::Sub": "yum localinstall -y -q influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            },
-                            "03_remove_package_file": {
-                                "command": {
-                                    "Fn::Sub": "rm influxdb-data-${InfluxDBVersion}_c${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            }
-                        }
-                    },
-                    "UpdateTelegraf": {
-                        "commands": {
-                            "01_download_telegraf": {
-                                "command": {
-                                    "Fn::Sub": "curl -s https://dl.influxdata.com/telegraf/releases/telegraf-${TelegrafVersion}-1.x86_64.rpm --output telegraf-${TelegrafVersion}-1.x86_64.rpm"
-                                }
-                            },
-                            "02_install_telegraf": {
-                                "command": {
-                                    "Fn::Sub": "yum localinstall -y -q telegraf-${TelegrafVersion}-1.x86_64.rpm"
-                                }
-                            },
-                            "03_remove_package_file": {
-                                "command": {
-                                    "Fn::Sub": "rm telegraf-${TelegrafVersion}-1.x86_64.rpm"
                                 }
                             }
                         }
@@ -1989,10 +1909,6 @@
                             "AttachNetwork",
                             "AttachVolume",
                             "MountVolume",
-                            "UpdateInfluxDB",
-                            "UpdateTelegraf",
-                            "UpdateChronograf",
-                            "UpdateKapacitor",
                             "StartInfluxDB",
                             "StartTelegraf",
                             "StartChronograf",
@@ -2228,6 +2144,12 @@
                                             "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
                                             "\n",
                                             "chown -R influxdb:influxdb /influxdb",
+                                            "\n",
+                                            "chown -R kapacitor:kapacitor /var/log/kapacitor",
+                                            "\n",
+                                            "mkdir -p /influxdb/kapacitor",
+                                            "\n",
+                                            "chown -R kapacitor:kapacitor /influxdb/kapacitor",
                                             "\n"
                                         ]
                                     ]
@@ -2253,114 +2175,6 @@
                                             "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
                                             "\n",
                                             "fi",
-                                            "\n"
-                                        ]
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "UpdateInfluxDB": {
-                        "commands": {
-                            "01_download_influxdb": {
-                                "command": {
-                                    "Fn::Sub": "curl -s https://dl.influxdata.com/influxdb/releases/influxdb-${InfluxDBVersion}.x86_64.rpm --output influxdb-${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            },
-                            "02_install_influxdb": {
-                                "command": {
-                                    "Fn::Sub": "yum localinstall -y -q influxdb-${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            },
-                            "03_remove_package_file": {
-                                "command": {
-                                    "Fn::Sub": "rm influxdb-${InfluxDBVersion}.x86_64.rpm"
-                                }
-                            }
-                        }
-                    },
-                    "UpdateTelegraf": {
-                        "commands": {
-                            "01_download_telegraf": {
-                                "command": {
-                                    "Fn::Sub": "curl -s https://dl.influxdata.com/telegraf/releases/telegraf-${TelegrafVersion}-1.x86_64.rpm --output telegraf-${TelegrafVersion}-1.x86_64.rpm"
-                                }
-                            },
-                            "02_install_telegraf": {
-                                "command": {
-                                    "Fn::Sub": "yum localinstall -y -q telegraf-${TelegrafVersion}-1.x86_64.rpm"
-                                }
-                            },
-                            "03_remove_package_file": {
-                                "command": {
-                                    "Fn::Sub": "rm telegraf-${TelegrafVersion}-1.x86_64.rpm"
-                                }
-                            }
-                        }
-                    },
-                    "UpdateChronograf": {
-                        "commands": {
-                            "01_download_chrongoraf": {
-                                "command": "curl -s https://dl.influxdata.com/chronograf/releases/chronograf-1.7.12.x86_64.rpm --output chronograf-1.7.12.x86_64.rpm"
-                            },
-                            "02_install_chronograf": {
-                                "command": "yum localinstall -y -q chronograf-1.7.12.x86_64.rpm"
-                            },
-                            "03_remove_package_file": {
-                                "command": "rm chronograf-1.7.12.x86_64.rpm"
-                            },
-                            "04_setup_chronograf_service": {
-                                "command": {
-                                    "Fn::Join": [
-                                        "",
-                                        [
-                                            "rm -r /etc/init.d/chronograf",
-                                            "\n",
-                                            "cp -f /usr/lib/chronograf/scripts/chronograf.service /usr/lib/systemd/system/chronograf.service",
-                                            "\n",
-                                            "chown root:root /usr/lib/systemd/system/chronograf.service",
-                                            "\n",
-                                            "chmod 644 /usr/lib/systemd/system/chronograf.service",
-                                            "\n",
-                                            "systemctl daemon-reload || true",
-                                            "\n"
-                                        ]
-                                    ]
-                                }
-                            }
-                        }
-                    },
-                    "UpdateKapacitor": {
-                        "commands": {
-                            "01_download_kapacitor": {
-                                "command": "curl -s https://dl.influxdata.com/kapacitor/releases/kapacitor-1.5.3.x86_64.rpm --output kapacitor-1.5.3.x86_64.rpm"
-                            },
-                            "02_install_kapacitor": {
-                                "command": "yum localinstall -y -q kapacitor-1.5.3.x86_64.rpm"
-                            },
-                            "03_remove_package_file": {
-                                "command": "rm kapacitor-1.5.3.x86_64.rpm"
-                            },
-                            "04_setup_kapacitor_service": {
-                                "command": {
-                                    "Fn::Join": [
-                                        "",
-                                        [
-                                            "rm -r /etc/init.d/kapacitor",
-                                            "\n",
-                                            "cp -f /usr/lib/kapacitor/scripts/chronograf.service /usr/lib/systemd/system/kapacitor.service",
-                                            "\n",
-                                            "chown root:root /usr/lib/systemd/system/kapacitor.service",
-                                            "\n",
-                                            "chmod 644 /usr/lib/systemd/system/kapacitor.service",
-                                            "\n",
-                                            "chown -R kapacitor:kapacitor /var/log/kapacitor",
-                                            "\n",
-                                            "mkdir -p /influxdb/kapacitor",
-                                            "\n",
-                                            "chown -R kapacitor:kapacitor /influxdb/kapacitor",
-                                            "\n",
-                                            "systemctl daemon-reload || true",
                                             "\n"
                                         ]
                                     ]
