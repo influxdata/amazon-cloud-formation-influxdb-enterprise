@@ -9,9 +9,7 @@
                         "default": "Network Configuration"
                     },
                     "Parameters": [
-                        "VpcId",
-                        "Subnets",
-                        "AvailabilityZones",
+                        "VpcClassB",
                         "InfluxDBIngressCIDR",
                         "KeyName",
                         "SSHLocation"
@@ -24,23 +22,12 @@
                     "Parameters": [
                         "Username",
                         "Password",
-                        "InfluxDBVersion",
-                        "TelegrafVersion",
                         "DataNodeDiskSize",
                         "DataNodeDiskIops"
                     ]
                 }
             ],
             "ParameterLabels": {
-                "VpcId": {
-                    "default": "VPC ID"
-                },
-                "Subnets": {
-                    "default": "Subnets (must be in the same VPC)"
-                },
-                "AvailabilityZones": {
-                    "default": "Availability zones must match length and order of subnet AZs"
-                },
                 "KeyName": {
                     "default": "SSH Key Name"
                 },
@@ -55,12 +42,6 @@
                 },
                 "Password": {
                     "default": "InfluxDB Administrator Password"
-                },
-                "InfluxDBVersion": {
-                    "default": "InfluxDB Enterprise Version"
-                },
-                "TelegrafVersion": {
-                    "default": "Telegraf Version"
                 },
                 "DataNodeInstanceType": {
                     "default": "InfluxDB Data Node Instance Type"
@@ -81,19 +62,13 @@
         }
     },
     "Parameters": {
-        "VpcId": {
-            "Type": "AWS::EC2::VPC::Id",
-            "Description": "VpcId of your existing Virtual Private Cloud (VPC)",
-            "ConstraintDescription": "must be the VPC Id of an existing Virtual Private Cloud."
-        },
-        "Subnets": {
-            "Type": "List<AWS::EC2::Subnet::Id>",
-            "Description": "A list of SubnetIds in your Virtual Private Cloud (VPC) where nodes will be created.",
-            "ConstraintDescription": "must be a list of at least two existing subnets associated with at least two different availability zones. They should be residing in the selected Virtual Private Cloud."
-        },
-        "AvailabilityZones": {
-            "Type": "List<AWS::EC2::AvailabilityZone::Name>",
-            "Description": "A list of Availability Zones for the SubnetIds parameter. AZs should be in the same order as the SubnetIds."
+        "VpcClassB": {
+            "Type": "Number",
+            "Description": "Class B of Virtual Private Cloud's (VPC) CIDR, e.g. 10.XXX.0.0/16",
+            "Default": 0,
+            "ConstraintDescription": "Allowed values are 0 through 255",
+            "MinValue": 0,
+            "MaxValue": 255
         },
         "Username": {
             "Description": "Username for the initial cluster administrator user",
@@ -103,16 +78,6 @@
             "Description": "Password for cluster administrator user",
             "Type": "String",
             "NoEcho": true
-        },
-        "InfluxDBVersion": {
-            "Description": "Version of InfluxDB Enterprise",
-            "Type": "String",
-            "Default": "1.7.7"
-        },
-        "TelegrafVersion": {
-            "Description": "Version of Telegraf",
-            "Type": "String",
-            "Default": "1.11.2"
         },
         "DataNodeInstanceType": {
             "Description": "Instance type for data nodes",
@@ -141,7 +106,7 @@
         "MetaNodeInstanceType": {
             "Description": "Instance type for meta nodes",
             "Type": "String",
-            "Default": "t2.small",
+            "Default": "t3.small",
             "AllowedValues": [
                 "t2.small",
                 "t2.medium",
@@ -155,7 +120,7 @@
         "MonitorInstanceType": {
             "Description": "Instance type for monitoring node",
             "Type": "String",
-            "Default": "t2.large",
+            "Default": "t3.large",
             "AllowedValues": [
                 "t2.small",
                 "t2.medium",
@@ -215,13 +180,222 @@
     "Mappings": {
         "AMIRegionMap": {
             "us-east-1": {
-                "Data": "ami-0e97198c10cc212b8",
-                "Meta": "ami-029df8607238012af",
-                "Monitor": "ami-09293eb6f6d59e3ed"
+                "Data": "ami-0d3f58e3e7855f16e",
+                "Meta": "ami-0f448b5585f5d030e",
+                "Monitor": "ami-038cec5466942cdb7"
+            },
+            "us-east-2": {
+                "Data": "ami-0a017c3c8e443f2eb",
+                "Meta": "ami-04dad2911814a65f7",
+                "Monitor": "ami-062cdd832f4757a5a"
+            },
+            "us-west-1": {
+                "Data": "ami-03570462643319437",
+                "Meta": "ami-095828139633357a3",
+                "Monitor": "ami-02bd70ea5a50a4bf3"
+            },
+            "us-west-2": {
+                "Data": "ami-08aeb7f951e94ec2a",
+                "Meta": "ami-07d04e7216e1a6899",
+                "Monitor": "ami-0e9355a51ab8b3b0f"
+            },
+            "ca-central-1": {
+                "Data": "ami-0327c5dda489695f0",
+                "Meta": "ami-01425ead9ff60c79e",
+                "Monitor": "ami-0607954fac53e643b"
+            },
+            "eu-central-1": {
+                "Data": "ami-0495b19fb39182fd8",
+                "Meta": "ami-049be8041f728be05",
+                "Monitor": "ami-0865959f37e8619d3"
+            },
+            "eu-west-1": {
+                "Data": "ami-0e49b8b963096778d",
+                "Meta": "ami-049c325022e67d107",
+                "Monitor": "ami-08d9a7c8aecfa9dd2"
+            },
+            "eu-west-2": {
+                "Data": "ami-01ba53edc2e3e8be7",
+                "Meta": "ami-08ba07b13611bf699",
+                "Monitor": "ami-01642712ead9a26da"
+            },
+            "ap-southeast-1": {
+                "Data": "ami-0a25da4bc5d6713fe",
+                "Meta": "ami-08d82f96a2787d85d",
+                "Monitor": "ami-0a9d8b8cb91a67930"
+            },
+            "ap-southeast-2": {
+                "Data": "ami-0c19991daca0de7f7",
+                "Meta": "ami-0b2dcb3caa92252ca",
+                "Monitor": "ami-093999ac1905e9cf3"
+            },
+            "ap-south-1": {
+                "Data": "ami-0ae1e26dd0ef38fc4",
+                "Meta": "ami-05b71f3dde9704b87",
+                "Monitor": "ami-0dde3f175eeb08766"
+            },
+            "ap-northeast-1": {
+                "Data": "ami-0b3fd8f643cd35322",
+                "Meta": "ami-08c1f14b85790ea23",
+                "Monitor": "ami-08de32bd6eedccd9b"
+            },
+            "ap-northeast-2": {
+                "Data": "ami-017df3dcedf24d93b",
+                "Meta": "ami-03ecc0c937752725c",
+                "Monitor": "ami-04e8ebfe9f91ec30b"
+            },
+            "ap-east-1": {
+                "Data": "ami-feed968f",
+                "Meta": "ami-e3e89392",
+                "Monitor": "ami-fbef948a"
+            },
+            "sa-east-1": {
+                "Data": "ami-0e312ee88ea0e833e",
+                "Meta": "ami-0b4a95cf5aecdf674",
+                "Monitor": "ami-02317c51b705cc8dd"
             }
         }
     },
     "Resources": {
+        "VPC": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": {
+                    "Fn::Sub": "10.${VpcClassB}.0.0/16"
+                },
+                "EnableDnsSupport": true,
+                "EnableDnsHostnames": true,
+                "InstanceTenancy": "default"
+            }
+        },
+        "InternetGateway": {
+            "Type": "AWS::EC2::InternetGateway"
+        },
+        "VPCGatewayAttachment": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                },
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "RouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                }
+            }
+        },
+        "Route": {
+            "DependsOn": "VPCGatewayAttachment",
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "RouteTable"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }
+            }
+        },
+        "Subnet00": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "CidrBlock": {
+                    "Fn::Sub": "10.${VpcClassB}.0.0/20"
+                },
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        "0",
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true
+            }
+        },
+        "Subnet00RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "Subnet00"
+                },
+                "RouteTableId": {
+                    "Ref": "RouteTable"
+                }
+            }
+        },
+        "Subnet01": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "CidrBlock": {
+                    "Fn::Sub": "10.${VpcClassB}.16.0/20"
+                },
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        "1",
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true
+            }
+        },
+        "Subnet01RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "Subnet01"
+                },
+                "RouteTableId": {
+                    "Ref": "RouteTable"
+                }
+            }
+        },
+        "Subnet02": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "CidrBlock": {
+                    "Fn::Sub": "10.${VpcClassB}.32.0/20"
+                },
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        "2",
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "MapPublicIpOnLaunch": true
+            }
+        },
+        "Subnet02RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "Subnet02"
+                },
+                "RouteTableId": {
+                    "Ref": "RouteTable"
+                }
+            }
+        },
         "InfluxDBPrivateHostedZone": {
             "Type": "AWS::Route53::HostedZone",
             "Properties": {
@@ -229,7 +403,7 @@
                 "VPCs": [
                     {
                         "VPCId": {
-                            "Ref": "VpcId"
+                            "Ref": "VPC"
                         },
                         "VPCRegion": {
                             "Ref": "AWS::Region"
@@ -270,9 +444,17 @@
                         "Ref": "InfluxDBALBSecurityGroup"
                     }
                 ],
-                "Subnets": {
-                    "Ref": "Subnets"
-                }
+                "Subnets": [
+                    {
+                        "Ref": "Subnet00"
+                    },
+                    {
+                        "Ref": "Subnet01"
+                    },
+                    {
+                        "Ref": "Subnet02"
+                    }
+                ]
             }
         },
         "InfluxDBLoadBalancerListener": {
@@ -309,7 +491,7 @@
                 "Protocol": "HTTP",
                 "UnhealthyThresholdCount": 2,
                 "VpcId": {
-                    "Ref": "VpcId"
+                    "Ref": "VPC"
                 }
             }
         },
@@ -383,7 +565,7 @@
                     }
                 ],
                 "VpcId": {
-                    "Ref": "VpcId"
+                    "Ref": "VPC"
                 }
             }
         },
@@ -392,7 +574,7 @@
             "Properties": {
                 "GroupDescription": "Allow traffic from public internet to go to port 8086 on InfluxDB data nodes",
                 "VpcId": {
-                    "Ref": "VpcId"
+                    "Ref": "VPC"
                 }
             }
         },
@@ -429,7 +611,7 @@
             "Properties": {
                 "GroupDescription": "Allow traffic from ALB to go to port 8086 on InfluxDB data nodes",
                 "VpcId": {
-                    "Ref": "VpcId"
+                    "Ref": "VPC"
                 }
             }
         },
@@ -452,7 +634,7 @@
             "Properties": {
                 "GroupDescription": "Allow all traffic between InfluxDB instances",
                 "VpcId": {
-                    "Ref": "VpcId"
+                    "Ref": "VPC"
                 }
             }
         },
@@ -657,7 +839,7 @@
                                             "\n",
                                             "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
-                                            "        --volume-id $VOLUME_ID",
+                                            "        --volume-ids $VOLUME_ID",
                                             "        --query 'VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'",
                                             "        --output text",
                                             ")\" == 'passed' ]]; do sleep 5; done",
@@ -814,7 +996,7 @@
                                             },
                                             " \"http://",
                                             {
-                                                "Ref": "InfluxDBLoadBalancerRecordSet"
+                                                "Ref": "DataNodeDns03"
                                             },
                                             ":8086/query\"",
                                             "        --data-urlencode \"q=",
@@ -828,6 +1010,21 @@
                                             },
                                             "' WITH ALL PRIVILEGES",
                                             "\"",
+                                            "\n",
+                                            "curl -u ",
+                                            {
+                                                "Ref": "Username"
+                                            },
+                                            ":",
+                                            {
+                                                "Ref": "Password"
+                                            },
+                                            " http://",
+                                            {
+                                                "Ref": "DataNodeDns03"
+                                            },
+                                            ":8086/query",
+                                            "        --data-urlencode 'q=CREATE DATABASE telegraf'",
                                             "\n",
                                             "fi",
                                             "\n"
@@ -924,12 +1121,7 @@
                     }
                 ],
                 "SubnetId": {
-                    "Fn::Select": [
-                        0,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
+                    "Ref": "Subnet00"
                 }
             }
         },
@@ -956,11 +1148,9 @@
             "Type": "AWS::EC2::Volume",
             "Properties": {
                 "AvailabilityZone": {
-                    "Fn::Select": [
-                        0,
-                        {
-                            "Ref": "AvailabilityZones"
-                        }
+                    "Fn::GetAtt": [
+                        "Subnet00",
+                        "AvailabilityZone"
                     ]
                 },
                 "Size": 25,
@@ -981,12 +1171,7 @@
             "Properties": {
                 "VPCZoneIdentifier": [
                     {
-                        "Fn::Select": [
-                            0,
-                            {
-                                "Ref": "Subnets"
-                            }
-                        ]
+                        "Ref": "Subnet00"
                     }
                 ],
                 "LaunchConfigurationName": {
@@ -1054,12 +1239,7 @@
                     }
                 ],
                 "SubnetId": {
-                    "Fn::Select": [
-                        1,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
+                    "Ref": "Subnet01"
                 }
             }
         },
@@ -1086,11 +1266,9 @@
             "Type": "AWS::EC2::Volume",
             "Properties": {
                 "AvailabilityZone": {
-                    "Fn::Select": [
-                        1,
-                        {
-                            "Ref": "AvailabilityZones"
-                        }
+                    "Fn::GetAtt": [
+                        "Subnet01",
+                        "AvailabilityZone"
                     ]
                 },
                 "Size": 20,
@@ -1105,12 +1283,7 @@
             "Properties": {
                 "VPCZoneIdentifier": [
                     {
-                        "Fn::Select": [
-                            1,
-                            {
-                                "Ref": "Subnets"
-                            }
-                        ]
+                        "Ref": "Subnet01"
                     }
                 ],
                 "LaunchConfigurationName": {
@@ -1173,12 +1346,7 @@
                     }
                 ],
                 "SubnetId": {
-                    "Fn::Select": [
-                        2,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
+                    "Ref": "Subnet02"
                 }
             }
         },
@@ -1205,11 +1373,9 @@
             "Type": "AWS::EC2::Volume",
             "Properties": {
                 "AvailabilityZone": {
-                    "Fn::Select": [
-                        2,
-                        {
-                            "Ref": "AvailabilityZones"
-                        }
+                    "Fn::GetAtt": [
+                        "Subnet02",
+                        "AvailabilityZone"
                     ]
                 },
                 "Size": 20,
@@ -1224,12 +1390,7 @@
             "Properties": {
                 "VPCZoneIdentifier": [
                     {
-                        "Fn::Select": [
-                            2,
-                            {
-                                "Ref": "Subnets"
-                            }
-                        ]
+                        "Ref": "Subnet02"
                     }
                 ],
                 "LaunchConfigurationName": {
@@ -1313,7 +1474,7 @@
                     },
                     "SetLicense": {
                         "files": {
-                            "/etc/default/influxdb": {
+                            "/etc/default/influxdb-meta": {
                                 "content": "INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws",
                                 "mode": "000644",
                                 "owner": "root",
@@ -1458,7 +1619,7 @@
                                             "\n",
                                             "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
-                                            "        --volume-id $VOLUME_ID",
+                                            "        --volume-ids $VOLUME_ID",
                                             "        --query 'VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'",
                                             "        --output text",
                                             ")\" == 'passed' ]]; do sleep 5; done",
@@ -1644,12 +1805,7 @@
                     }
                 ],
                 "SubnetId": {
-                    "Fn::Select": [
-                        0,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
+                    "Ref": "Subnet00"
                 }
             }
         },
@@ -1676,11 +1832,9 @@
             "Type": "AWS::EC2::Volume",
             "Properties": {
                 "AvailabilityZone": {
-                    "Fn::Select": [
-                        0,
-                        {
-                            "Ref": "AvailabilityZones"
-                        }
+                    "Fn::GetAtt": [
+                        "Subnet00",
+                        "AvailabilityZone"
                     ]
                 },
                 "Size": {
@@ -1700,12 +1854,7 @@
             "Properties": {
                 "VPCZoneIdentifier": [
                     {
-                        "Fn::Select": [
-                            0,
-                            {
-                                "Ref": "Subnets"
-                            }
-                        ]
+                        "Ref": "Subnet00"
                     }
                 ],
                 "LaunchConfigurationName": {
@@ -1773,12 +1922,7 @@
                     }
                 ],
                 "SubnetId": {
-                    "Fn::Select": [
-                        1,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
+                    "Ref": "Subnet01"
                 }
             }
         },
@@ -1805,11 +1949,9 @@
             "Type": "AWS::EC2::Volume",
             "Properties": {
                 "AvailabilityZone": {
-                    "Fn::Select": [
-                        1,
-                        {
-                            "Ref": "AvailabilityZones"
-                        }
+                    "Fn::GetAtt": [
+                        "Subnet01",
+                        "AvailabilityZone"
                     ]
                 },
                 "Size": {
@@ -1829,12 +1971,7 @@
             "Properties": {
                 "VPCZoneIdentifier": [
                     {
-                        "Fn::Select": [
-                            1,
-                            {
-                                "Ref": "Subnets"
-                            }
-                        ]
+                        "Ref": "Subnet01"
                     }
                 ],
                 "LaunchConfigurationName": {
@@ -2097,7 +2234,7 @@
                                             "\n",
                                             "until [[ \"$(",
                                             "aws ec2 describe-volume-status",
-                                            "        --volume-id $VOLUME_ID",
+                                            "        --volume-ids $VOLUME_ID",
                                             "        --query 'VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'",
                                             "        --output text",
                                             ")\" == 'passed' ]]; do sleep 5; done",
@@ -2366,12 +2503,7 @@
                     }
                 ],
                 "SubnetId": {
-                    "Fn::Select": [
-                        2,
-                        {
-                            "Ref": "Subnets"
-                        }
-                    ]
+                    "Ref": "Subnet02"
                 }
             }
         },
@@ -2398,11 +2530,9 @@
             "Type": "AWS::EC2::Volume",
             "Properties": {
                 "AvailabilityZone": {
-                    "Fn::Select": [
-                        2,
-                        {
-                            "Ref": "AvailabilityZones"
-                        }
+                    "Fn::GetAtt": [
+                        "Subnet02",
+                        "AvailabilityZone"
                     ]
                 },
                 "Size": 100,
@@ -2417,12 +2547,7 @@
             "Properties": {
                 "VPCZoneIdentifier": [
                     {
-                        "Fn::Select": [
-                            2,
-                            {
-                                "Ref": "Subnets"
-                            }
-                        ]
+                        "Ref": "Subnet02"
                     }
                 ],
                 "LaunchConfigurationName": {

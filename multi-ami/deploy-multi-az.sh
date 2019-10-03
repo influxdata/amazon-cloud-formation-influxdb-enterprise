@@ -25,11 +25,9 @@ readonly influxdb_username="${3:-admin}"
 readonly influxdb_password="${4:-admin}"
 readonly license_key="${LICENSE_KEY}"
 
-readonly template="cf-templates/influxdb-enterprise-byol.json"
-readonly vpc="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[].VpcId" --output "text" --region "$region")"
-readonly subnets="$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$vpc" --query "Subnets[].SubnetId" --region "$region" | jq -r '.[0:3] | @tsv')"
-readonly availability_zones="$(aws ec2 describe-subnets --subnet-ids $subnets --query "Subnets[].AvailabilityZone" --region "$region" | jq -r '.[0:3] | @tsv' | sed -e $'s/\t/,/g')"
+readonly template="cf-templates/influxdb-enterprise-byol-updated-multi-az.json"
 readonly ssh_key_name="$(aws ec2 describe-key-pairs --query "KeyPairs[?starts_with(KeyName, 'influxdb')].KeyName" --output text --region "$region")"
+readonly vpc_class_b="0"
 
 # By default, this script will not actually execute a deploy. Remove the
 # "--no-execute-changeset" option to create resources.
@@ -41,9 +39,7 @@ IFS=$'\n' aws cloudformation deploy \
     --stack-name "${stack_name}" \
     --region "${region}" \
     --parameter-overrides \
-        VpcId="${vpc}" \
-        Subnets="$(echo "${subnets}" | sed -e $'s/\t/,/g')" \
-        AvailabilityZones="$(echo "${availability_zones}" | sed -e $'s/\t/,/g')" \
+        VpcClassB="${vpc_class_b}" \
         Username="${influxdb_username}" \
         Password="${influxdb_password}" \
         KeyName="${ssh_key_name}" \

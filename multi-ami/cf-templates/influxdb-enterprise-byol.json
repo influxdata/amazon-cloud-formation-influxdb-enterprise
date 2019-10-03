@@ -145,7 +145,7 @@
         "MetaNodeInstanceType": {
             "Description": "Instance type for meta nodes",
             "Type": "String",
-            "Default": "t2.small",
+            "Default": "t3.small",
             "AllowedValues": [
                 "t2.small",
                 "t2.medium",
@@ -159,7 +159,7 @@
         "MonitorInstanceType": {
             "Description": "Instance type for monitoring node",
             "Type": "String",
-            "Default": "t2.large",
+            "Default": "t3.large",
             "AllowedValues": [
                 "t2.small",
                 "t2.medium",
@@ -223,9 +223,9 @@
     "Mappings": {
         "AMIRegionMap": {
             "us-east-1": {
-                "Data": "ami-087ff8f63cf64a51c",
-                "Meta": "ami-01f4a0c2d4309c347",
-                "Monitor": "ami-09293eb6f6d59e3ed"
+                "Data": "ami-008f7c5091fac913b",
+                "Meta": "ami-093482b436bfdafe8",
+                "Monitor": "ami-0b0af8c2b43f4a937"
             }
         }
     },
@@ -413,7 +413,9 @@
                 "IpProtocol": "tcp",
                 "FromPort": 8086,
                 "ToPort": 8086,
-                "CidrIp": "0.0.0.0/0"
+                "CidrIp": {
+                    "Ref": "InfluxDBIngressCIDR"
+                }
             }
         },
         "InfluxDBALBSGEgress": {
