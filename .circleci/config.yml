@@ -1,0 +1,97 @@
+version: 2
+jobs:
+  validate-packer:
+    docker:
+      - image: hashicorp/packer:1.4.2
+    working_directory: ~/multi-ami/packer
+    parallelism: 5
+    steps:
+      - checkout
+      - run:
+          name: Validate packer template for InfluxDB Enterprise data node with integrated billing
+          command: packer validate -var 'listing_type=billing' ./influxdb-enterprise-data.json
+      - run:
+          name: Validate packer template for InfluxDB Enterprise meta node with integrated billing
+          command: packer validate -var 'listing_type=billing' ./influxdb-enterprise-meta.json
+      - run:
+          name: Validate packer template for InfluxDB Enterprise data node with BYOL
+          command: packer validate -var 'listing_type=byol' ./influxdb-enterprise-data.json
+      - run:
+          name: Validate packer template for InfluxDB Enterprise meta node with BYOL
+          command: packer validate -var 'listing_type=byol' ./influxdb-enterprise-meta.json
+      - run:
+          name: Validate packer template for InfluxDB OSS
+          command: packer validate ./influxdb-monitor.json
+  build-amis:
+    docker:
+      - image: hashicorp/packer:1.4.2
+    working_directory: ~/multi-ami/packer
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/multi-ami/packer
+      - run:
+          name: Build base
+          command: ./scripts/build.sh base ./base/base.json
+          no_output_timeout: 30m
+      - persist_to_workspace:
+          root: .
+          paths:
+            - manifest-base.json
+      - store_artifacts:
+          path: manifest-base.json
+  validate-cf-template:
+    docker:
+      - image: mikesir87/aws-cli
+    working_directory: ~/multi-ami
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/multi-ami/packer
+      - run:
+          name: Add new AMIs to CF templates
+          command: ./scripts/validate.sh secondary ./snowflake/snowflake.json
+      - run:
+          name: Validate CF templates
+          command: ./scripts/build.sh secondary ./snowflake/snowflake.json
+      - persist_to_workspace:
+          root: .
+          paths:
+            - influxdb-enterprise-byol.json
+            - inflxudb-enterprise-billing.json
+      - store_artifacts:
+          path: manifest-snowflake.json
+  test-cf-template:
+    docker:
+      - image: hashicorp/packer:1.4.2
+    working_directory: ~/packer
+    steps:
+      - checkout
+      - attach_workspace:
+          at: ~/packer
+      - run:
+          name: Install JQ
+          command: apk --no-cache add jq
+      - run:
+          name: Deploy canary
+          command: ./scripts/deploy-master-canary.sh
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - validate
+      - build-amis:
+          requires:
+            - validate
+          context: AMI
+      - validate-cf-template:
+          requires:
+            - build-amis
+      - test-cf-template:
+          requires:
+            - validate-cf-template
+          filters:
+            branches:
+              only:
+                - develop
+                - master
