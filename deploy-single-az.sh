@@ -25,7 +25,7 @@ readonly influxdb_username="${4:-admin}"
 readonly influxdb_password="${5:-admin}"
 readonly license_key="${LICENSE_KEY}"
 
-readonly template="cf-templates/influxdb-enterprise-byol-updated-single-az.json"
+readonly template="cf-templates/byol-single-az.json"
 readonly vpc="$(aws ec2 describe-vpcs --filters "Name=isDefault,Values=true" --query "Vpcs[0].VpcId" --output "text" --region "${region}")"
 readonly subnet="$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpc}" --query "Subnets[0].SubnetId" --output "text" --region "${region}")"
 readonly availability_zone="$(aws ec2 describe-subnets --subnet-ids "${subnet}" --query "Subnets[0].AvailabilityZone" --output "text" --region "${region}")"

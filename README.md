@@ -1,72 +1,84 @@
 # AWS Cloud Formation Templates for InfluxDB Enterprise
 
 This repository contains CloudFormation templates which can be used to deploy a
-production-ready InfluxDB Enterprise cluster.
+production-ready InfluxDB Enterprise cluster. These are also the source AMI and
+CloudFormation templates used in [InfluxData's InfluxDB Enterprise product]()
+listed on the AWS Marketplace.
 
-## Prerequisites
+![Architecture of an InfluxDB Enterprise cluster deployed through AWS Marketplace](aws-marketplace-influxdb-enterprise.png)
 
-An InfluxDB Enterprise subscription must be optained to deploy a cluster. There
-are two ways to obtain a license:
+## Getting Started
 
-1. Subscribe to [Influxdata's InfluxDB Enterprise solution on AWS
-   Marketplace](placeholder).
-2. Bring your own license key. [Sign up for a free two-week trial
-   license](https://portal.influxdata.com/users/new).
+Subscribe to the [InfluxDB Enterprise product on AWS Marketplace](). This
+provides access to several AMIs which can be deployed as an InfluxDB Enterprise
+cluster using AWS CloudFormation.
 
-This will affect which template should be used:
+### Deploy using AWS Marketplace (recommended)
 
-- AWS Marketplace subscribers with access to the solution AMIs should use
-  templates with "billing" in the name.
-  - __Note:__ These are the source templates used when an InfluxDB Enterprise
-    cluster is created directly through the CloudFormation console UI after
-    subscribing.
-- InfluxData Portal subscribers with a license key should use templates with
-  "byol" (bring your own license) in the name.
+After subscribing, choose one of several template options available when
+deploying an InfluxDB Enterprise cluster through the AWS Marketplace. The AWS
+Marketplace InfluxDB Enterprise product uses templates based off the ones in
+this repo.
 
-## Deployment
+__Billing options:__
 
-There are two cluster configurations to deploy a cluster in either a single
-availability zone or three availability zones.
+- Default: The default templates have integrated billing through AWS
+  Marketplace. InfluxDB Enterprise license costs are added to your AWS bill when
+  deploying these templates.
+- BYOL: The bring-your-own-license templates require an InfluxDB Enterprise
+  license key obtained from and billed to InfluxData outside AWS. [Sign up for a
+  free two-week trial license here](https://portal.influxdata.com/users/new).
 
+__Network options:__
 
+- Multi-AZ: This template deploys an InfluxDB Enterprise cluster in a new VPC
+  with subnets in three different availability zones. This option is best for
+  operators who want the cluster deployed in a new VPC with nodes partitioned
+  among different availability zones.
+- Single-AZ: This template deploys an InfluxDB Enterprise cluster in an existing
+  subnet with all nodes in a single availability zone. This option is best for
+  operators who want InfluxDB in an existing subnet.
 
-Login to an AWS account and subscribe to the [InfluxDB Enterprise solution on the AWS Marketplace]().
+Once a template is chosen, fill out the CloudFormation parameters and deploy the
+template. See the [documentation]() for more information on the required
+parameters.
 
-When signing up for the solution 
+The documentation describes how to make changes to an InfluxDB Enterprise
+cluster deployed by these templates.
 
-This template can be deployed from the AWS Marketplace or via the AWS CLI using
-the template in this repo.
+### Deploy using the AWS CLI
 
-To deploy the template in this repo, make sure you have the AWS CLI installed
-and configured with your account credentials. Then run the following script.
+The templates in this repo can be used to deploy an InfluxDB Enterprise cluster
+using the AWS CLI.
+
+First, install and configure the AWS CLI with your account credentials.
+
+Next run either the `deploy-multi-az.sh` and `deploy-single-az.sh` script to
+call an AWS CLI command to start a cluster. The scripts are build only to deploy
+BYOL templates so a license key much be passed in as an environment variable.
 
 ```sh
 export LICENSE_KEY=a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-./deploy.sh
+./deploy-multi-az.sh
 ```
 
 ## Building the AMIs
 
-These pre-built AMIs can be used with the BYOL templates (without a subscription
-to the AWS Marketplace BYOL solution).
+__Note: Images do not have to be build when subscribing to the InfluxDB
+Enterprise product on the AWS Marketplace. Instead use the AMIs already included
+in the CloudFormation templates.__
 
-```
-"Data": "ami-008f7c5091fac913b",
-"Meta": "ami-093482b436bfdafe8",
-"Monitor": "ami-0b0af8c2b43f4a937"
-```
+Building new AMIs with updated OS or InfluxDB versions is straightforward using
+[Hashicorp's Packer](https://www.packer.io/docs/builders/amazon.html). Packer
+templates can be found in the `packer` directory of this repo.
 
-Otherwise, it's relatively easy to build new AMIs with [Hashicorp's
-Packer](https://www.packer.io/docs/builders/amazon.html) using the templates in
-the `packer` directory.
+First, install Packer and the AWS CLI. Configure the AWS CLI with your account
+credentials.
 
-Note that the AMIs are also available on the AWS Marketplace so this is not
-necessary to use the template.
-
-Before running Packer, you will need to AWS CLI installed and configured.
-
-Run the following command to build the image:
+Then, switch to the `cf-templates` directory and run the following command to
+build an AMI.
 
 ```sh
-packer build influxdb-ami.json
+cd cf-templates
+packer build byol-multi-az.json
 ```

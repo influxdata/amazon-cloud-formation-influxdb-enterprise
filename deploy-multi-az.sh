@@ -25,7 +25,7 @@ readonly influxdb_username="${3:-admin}"
 readonly influxdb_password="${4:-admin}"
 readonly license_key="${LICENSE_KEY}"
 
-readonly template="cf-templates/influxdb-enterprise-byol-updated-multi-az.json"
+readonly template="cf-templates/byol-multi-az.json"
 readonly ssh_key_name="$(aws ec2 describe-key-pairs --query "KeyPairs[?starts_with(KeyName, 'influxdb')].KeyName" --output text --region "$region")"
 readonly vpc_class_b="0"
 
