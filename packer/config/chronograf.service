@@ -1,0 +1,20 @@
+[Unit]
+Description=Open source monitoring and visualization UI for the entire TICK stack. 
+Documentation="https://www.influxdata.com/time-series-platform/chronograf/"
+After=network-online.target
+
+[Service]
+User=chronograf
+Group=chronograf
+Environment="HOST=0.0.0.0"
+Environment="PORT=8888"
+Environment="BOLT_PATH=/var/lib/chronograf/chronograf-v1.db"
+Environment="CANNED_PATH=/usr/share/chronograf/canned"
+Environment="PROTOBOARDS_PATH=/usr/share/chronograf/protoboards"
+EnvironmentFile=-/etc/default/chronograf
+ExecStart=/usr/bin/chronograf $CHRONOGRAF_OPTS
+KillMode=control-group
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
