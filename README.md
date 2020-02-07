@@ -55,7 +55,7 @@ First, install and configure the AWS CLI with your account credentials.
 
 Next run either the `deploy-multi-az.sh` and `deploy-single-az.sh` script to
 call an AWS CLI command to start a cluster. The scripts are build only to deploy
-BYOL templates so a license key much be passed in as an environment variable.
+BYOL templates so a license key must be passed in as an environment variable.
 
 ```sh
 export LICENSE_KEY=a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx
