@@ -1316,7 +1316,7 @@
                     },
                     {
                         "Key": "Name",
-                        "Value": "meta-01",
+                        "Value": "meta-1",
                         "PropagateAtLaunch": true
                     }
                 ]
