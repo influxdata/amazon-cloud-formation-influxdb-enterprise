@@ -3,15 +3,15 @@
     "variables": {
         "aws_region": "us-east-1",
         "base_ami_name": "influxdb-monitor",
-        "telegraf_version": "1.11.2",
-        "influxdb_version": "1.7.7",
-        "chronograf_version": "1.7.12",
-        "kapacitor_version": "1.5.3"
+        "telegraf_version": "1.14.2",
+        "influxdb_version": "1.8.0",
+        "chronograf_version": "1.8.4",
+        "kapacitor_version": "1.5.5"
     },
     "builders": [
         {
             "name": "ami",
-            "ami_name": "{{user `base_ami_name`}}-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_ami_name}}",
+            "ami_name": "{{user `base_ami_name`}}-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_resource_name}}",
             "ami_description": "An Amazon Linux 2 AMI that has the TICK stack installed and is set up to monitor an InfluxDB Enterprise cluster deployed from the AWS Marketplace listing.",
             "instance_type": "t2.micro",
             "region": "{{user `aws_region`}}",
@@ -35,7 +35,7 @@
     "provisioners": [
         {
             "type": "file",
-            "source": "../config",
+            "source": "./config",
             "destination": "/tmp"
         },
         {
