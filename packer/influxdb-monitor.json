@@ -3,7 +3,7 @@
     "variables": {
         "aws_region": "us-east-1",
         "base_ami_name": "influxdb-monitor",
-        "telegraf_version": "1.14.2",
+        "telegraf_version": "1.14.4",
         "influxdb_version": "1.8.0",
         "chronograf_version": "1.8.4",
         "kapacitor_version": "1.5.5"
