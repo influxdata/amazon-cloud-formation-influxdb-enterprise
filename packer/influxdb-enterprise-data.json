@@ -3,14 +3,13 @@
     "variables": {
         "aws_region": "us-east-1",
         "base_ami_name": "influxdb-enterprise",
-        "listing_type": "byol",
         "influxdb_version": "1.8.0",
         "telegraf_version": "1.14.4"
     },
     "builders": [
         {
             "name": "ami",
-            "ami_name": "{{user `base_ami_name`}}-{{user `listing_type`}}-data-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_resource_name}}",
+            "ami_name": "{{user `base_ami_name`}}-data-{{user `influxdb_version`}}-amazon-linux-2-{{isotime | clean_resource_name}}",
             "ami_description": "An Amazon Linux 2 AMI that has InfluxDB Enterprise data installed and used in the AWS Marketplace listing.",
             "instance_type": "t2.micro",
             "region": "{{user `aws_region`}}",
