@@ -13,13 +13,12 @@ validate_file_nonexists() {
   for f in $file_blob; do
     if [ -e "$f" ]; then
       echo "$f shouldn't exists"
-      exit 0
     fi
   done
 }
 
-# validate_file_nonexists '/etc/hostname'
-# validate_file_nonexists '/etc/resolv.conf'
+validate_file_nonexists '/etc/hostname'
+validate_file_nonexists '/etc/resolv.conf'
 validate_file_nonexists '/etc/ssh/ssh_host*'
 validate_file_nonexists '/home/ec2-user/.ssh/authorized_keys'
 validate_file_nonexists '/root/.ssh/authorized_keys'
