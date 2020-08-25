@@ -4,10 +4,10 @@
         "aws_access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
         "aws_secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}",
         "aws_region": "us-east-1",
-        "influxdb_version": "1.8.0",
-        "telegraf_version": "1.14.4",
-        "chronograf_version": "1.8.4",
-        "kapacitor_version": "1.5.5"
+        "influxdb_version": "1.8.2",
+        "telegraf_version": "1.15.2",
+        "chronograf_version": "1.8.5",
+        "kapacitor_version": "1.5.6"
     },
     "builders": [
         {
