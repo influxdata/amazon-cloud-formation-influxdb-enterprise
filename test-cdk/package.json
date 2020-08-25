@@ -1,0 +1,52 @@
+{
+  "name": "test-cdk",
+  "version": "0.1.0",
+  "bin": {
+    "test-cdk": "bin/test-cdk.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/influxdata/amazon-cloud-formation-influxdb-enterprise.git"
+  },
+  "private": true,
+  "author": {
+    "name": "InfluxData",
+    "url": "https://influxdata.com",
+    "organization": true
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@aws-cdk/assert": "^1.54.0",
+    "@types/jest": "^25.2.3",
+    "@types/node": "^10.17.5",
+    "aws-cdk": "^1.54.0",
+    "jest": "^25.5.4",
+    "ts-jest": "^25.3.1",
+    "ts-node": "^8.1.0",
+    "typescript": "^3.7.5"
+  },
+  "dependencies": {
+    "@aws-cdk/aws-autoscaling": "^1.54.0",
+    "@aws-cdk/aws-certificatemanager": "^1.54.0",
+    "@aws-cdk/aws-cloudwatch": "^1.54.0",
+    "@aws-cdk/aws-elasticloadbalancing": "^1.54.0",
+    "@aws-cdk/aws-elasticloadbalancingv2": "^1.54.0",
+    "@aws-cdk/aws-events": "^1.54.0",
+    "@aws-cdk/aws-iam": "^1.54.0",
+    "@aws-cdk/aws-kms": "^1.54.0",
+    "@aws-cdk/aws-lambda": "^1.54.0",
+    "@aws-cdk/aws-route53": "^1.54.0",
+    "@aws-cdk/aws-s3": "^1.54.0",
+    "@aws-cdk/aws-sns": "^1.54.0",
+    "@aws-cdk/aws-sqs": "^1.54.0",
+    "@aws-cdk/core": "^1.54.0",
+    "@aws-cdk/cx-api": "^1.54.0",
+    "@aws-cdk/region-info": "^1.54.0"
+  }
+}
