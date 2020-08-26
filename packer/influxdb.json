@@ -1,8 +1,6 @@
 {
     "min_packer_version": "0.12.0",
     "variables": {
-        "aws_access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
-        "aws_secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}",
         "aws_region": "us-east-1",
         "influxdb_version": "1.8.2",
         "telegraf_version": "1.15.2",
@@ -11,8 +9,6 @@
     },
     "builders": [
         {
-            "access_key": "{{user `aws_access_key`}}",
-            "secret_key": "{{user `aws_secret_key`}}",
             "name": "enterprise-data",
             "ami_name": "influxdb-enterprise-data-{{user `influxdb_version`}}-amazon-linux-2-{{timestamp}}",
             "ami_description": "InfluxDB Enterprise data node based on Amazon Linux 2.",
@@ -45,8 +41,6 @@
             }
         },
         {
-            "access_key": "{{user `aws_access_key`}}",
-            "secret_key": "{{user `aws_secret_key`}}",
             "name": "enterprise-meta",
             "ami_name": "influxdb-enterprise-meta-{{user `influxdb_version`}}-amazon-linux-2-{{timestamp}}",
             "ami_description": "InfluxDB Enterprise meta node based on Amazon Linux 2.",
@@ -76,8 +70,6 @@
             }
         },
         {
-            "access_key": "{{user `aws_access_key`}}",
-            "secret_key": "{{user `aws_secret_key`}}",
             "name": "oss-monitor",
             "ami_name": "influxdb-oss-monitor-{{user `influxdb_version`}}-amazon-linux-2-{{timestamp}}",
             "ami_description": "InfluxDB open source monitoring node based on Amazon Linux 2.",
