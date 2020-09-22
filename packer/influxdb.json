@@ -12,9 +12,6 @@
             "name": "enterprise-data",
             "ami_name": "influxdb-enterprise-data-{{user `influxdb_version`}}-amazon-linux-2-{{timestamp}}",
             "ami_description": "InfluxDB Enterprise data node based on Amazon Linux 2.",
-            "ami_regions": [
-                "us-west-2"
-            ],
             "instance_type": "t2.micro",
             "region": "{{user `aws_region`}}",
             "type": "amazon-ebs",
