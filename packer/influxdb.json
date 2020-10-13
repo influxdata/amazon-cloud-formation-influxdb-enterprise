@@ -3,9 +3,9 @@
     "variables": {
         "aws_region": "us-east-1",
         "influxdb_version": "1.8.2",
-        "telegraf_version": "1.15.2",
-        "chronograf_version": "1.8.6",
-        "kapacitor_version": "1.5.6"
+        "telegraf_version": "1.16.1",
+        "chronograf_version": "1.8.8",
+        "kapacitor_version": "1.5.7"
     },
     "builders": [
         {

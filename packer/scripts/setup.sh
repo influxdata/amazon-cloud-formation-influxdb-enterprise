@@ -29,10 +29,10 @@ case "${PACKER_BUILD_NAME}" in
         ./setup-kapacitor.sh "${KAPACITOR_VERSION}";;
 esac
 
+rm -r /tmp/scripts /tmp/config
+rm /home/ec2-user/.ssh/authorized_keys
+sudo rm /root/.ssh/authorized_keys
+
 sudo chmod +x ./validate.sh
 ./validate.sh
 rm -r ./*.sh
-
-rm -r /tmp/scripts /tmp/config
-rm .ssh/authorized_keys
-sudo rm /root/.ssh/authorized_keys
