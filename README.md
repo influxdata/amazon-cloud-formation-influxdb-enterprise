@@ -1,84 +1,56 @@
-# AWS Cloud Formation Templates for InfluxDB Enterprise
+# InfluxDB Enterprise AWS Cloud Formation Templates
 
-This repository contains CloudFormation templates which can be used to deploy a
-production-ready InfluxDB Enterprise cluster. These are also the source AMI and
-CloudFormation templates used in [InfluxData's InfluxDB Enterprise product]()
+This repository contains templates to build AMIs for InfluxDB Enterprise as well as CloudFormation templates to deploy and configure an InfluxDB Enterprise cluster. These are also the source AMI and
+CloudFormation templates used in [InfluxData's InfluxDB Enterprise product](https://aws.amazon.com/marketplace/pp/InfluxData-Inc-InfluxDB-Enterprise/prodview-m6excs2fnnq5c)
 listed on the AWS Marketplace.
 
 ![Architecture of an InfluxDB Enterprise cluster deployed through AWS Marketplace](aws-marketplace-influxdb-enterprise.png)
 
 ## Getting Started
 
-Subscribe to the [InfluxDB Enterprise product on AWS Marketplace](). This
-provides access to several AMIs which can be deployed as an InfluxDB Enterprise
-cluster using AWS CloudFormation.
+The assets in this repo can be used on their own or through the AWS Marketplace. The benefit of using AWS Marketplace is that the InfluxDB Enterprise license is billed through AWS. The templates in this repo can also be used directly outside the AWS Marketplace. However, these templates and images are not required to run InfluxDB Enterprise on AWS Marketplace. See the [Installation guide](https://docs.influxdata.com/enterprise_influxdb/v1.8/introduction/installation_requirements/) to learn how to install InfluxDB Enterprise without using the assests in this repo.
 
-### Deploy using AWS Marketplace (recommended)
+### AWS Marketplace
 
-After subscribing, choose one of several template options available when
-deploying an InfluxDB Enterprise cluster through the AWS Marketplace. The AWS
-Marketplace InfluxDB Enterprise product uses templates based off the ones in
-this repo.
+To deploy InfluxDB Enterprise through AWS Marketplace, subscribe to the InfluxDB Enterprise offer on AWS Marketplace](https://aws.amazon.com/marketplace/pp/InfluxData-Inc-InfluxDB-Enterprise/prodview-m6excs2fnnq5c). At the end of the subscription flow, you will be provided access to several AMIs for InfluxDB Enterprise and the option to deploy them as an InfluxDB Enterprise
+cluster using AWS CloudFormation. When using this method, an InfluxDB Enterprise license key is not needed and the license costs for usage are automatically billed through AWS Marketplace. Please reach out to sales@influxdata.com for more details.
 
-__Billing options:__
+### Using the templates in this repo
 
-- Default: The default templates have integrated billing through AWS
-  Marketplace. InfluxDB Enterprise license costs are added to your AWS bill when
-  deploying these templates.
-- BYOL: The bring-your-own-license templates require an InfluxDB Enterprise
-  license key obtained from and billed to InfluxData outside AWS. [Sign up for a
-  free two-week trial license here](https://portal.influxdata.com/users/new).
+The templates in this repo can be used to deploy an InfluxDB Enterprise cluster without using the AWS Marketplace. Note that this may not be the most flexible deployment pattern for upgrades.
 
-__Network options:__
+#### Prerequisites
 
-- Multi-AZ: This template deploys an InfluxDB Enterprise cluster in a new VPC
-  with subnets in three different availability zones. This option is best for
-  operators who want the cluster deployed in a new VPC with nodes partitioned
-  among different availability zones.
-- Single-AZ: This template deploys an InfluxDB Enterprise cluster in an existing
-  subnet with all nodes in a single availability zone. This option is best for
-  operators who want InfluxDB in an existing subnet.
+- Install [Hashicorp's Packer](https://www.packer.io/docs/builders/amazon.html) image build tool.
+- Install [AWS' CLI tool](https://aws.amazon.com/cli/).
+  - Configure the AWS CLI with your account credentials, e.g. `aws configure`.
 
-Once a template is chosen, fill out the CloudFormation parameters and deploy the
-template. See the [documentation]() for more information on the required
-parameters.
+#### Build the AMI images
 
-The documentation describes how to make changes to an InfluxDB Enterprise
-cluster deployed by these templates.
+The first step is to build AMI images to use in the Cloud Formation templates.
 
-### Deploy using the AWS CLI
+_Note: InfluxData does not maintain AMIs outside the AWS Marketplace at this time. Unless you feel comfortable building your own images, we recommend subscribing to the [InfluxDB Enterprise offer](https://aws.amazon.com/marketplace/pp/InfluxData-Inc-InfluxDB-Enterprise/prodview-m6excs2fnnq5c) on AWS Marketplace or [following the InfluxDB Enterprise installation guide](https://docs.influxdata.com/enterprise_influxdb/v1.8/install-and-deploy/production_installation/)._
 
-The templates in this repo can be used to deploy an InfluxDB Enterprise cluster
-using the AWS CLI.
+Install [Hashicorp's Packer](https://www.packer.io/docs/builders/amazon.html) image build tool. Configure Packer with AWS credentials. Then, run the following commands to build the images:
+
+```
+cd packer
+packer build influxdb.json
+```
+
+Record the AMI IDs created by Packer.
+
+_Note: The InfluxDB Enterprise images are based on the Amazon Linux 2 AMI._
+
+#### Deploy the Cloud Formation template
 
 First, install and configure the AWS CLI with your account credentials.
 
-Next run either the `deploy-multi-az.sh` and `deploy-single-az.sh` script to
-call an AWS CLI command to start a cluster. The scripts are build only to deploy
-BYOL templates so a license key must be passed in as an environment variable.
+Replace AMI IDs in the Cloud Formation template in this repo with the AMI IDs generated above or subscribe to the InfluxDB Enterprise offer on AWS Marketplace.
+
+Next, run either the `deploy-multi-az.sh` and `deploy-single-az.sh` script to create a cluster. When using self-built AMIs, license key must be passed in as an environment variable.
 
 ```sh
 export LICENSE_KEY=a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ./deploy-multi-az.sh
-```
-
-## Building the AMIs
-
-__Note: Images do not have to be build when subscribing to the InfluxDB
-Enterprise product on the AWS Marketplace. Instead use the AMIs already included
-in the CloudFormation templates.__
-
-Building new AMIs with updated OS or InfluxDB versions is straightforward using
-[Hashicorp's Packer](https://www.packer.io/docs/builders/amazon.html). Packer
-templates can be found in the `packer` directory of this repo.
-
-First, install Packer and the AWS CLI. Configure the AWS CLI with your account
-credentials.
-
-Then, switch to the `cf-templates` directory and run the following command to
-build an AMI.
-
-```sh
-cd cf-templates
-packer build byol-multi-az.json
 ```
