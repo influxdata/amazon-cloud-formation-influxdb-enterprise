@@ -1503,6 +1503,8 @@
                                             "        --output text )",
                                             "\n",
                                             "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\" >> /etc/default/influxdb",
+                                            "\n",
+                                            "echo \"INFLUXDB_HTTP_FLUX_ENABLED=true\" >> /etc/default/influxdb",
                                             "\n"
                                         ]
                                     ]
