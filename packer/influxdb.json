@@ -2,9 +2,9 @@
     "min_packer_version": "0.12.0",
     "variables": {
         "aws_region": "us-east-1",
-        "influxdb_version": "1.8.2",
-        "telegraf_version": "1.16.1",
-        "chronograf_version": "1.8.8",
+        "influxdb_version": "1.8.3",
+        "telegraf_version": "1.16.3",
+        "chronograf_version": "1.8.9.1",
         "kapacitor_version": "1.5.7"
     },
     "builders": [
