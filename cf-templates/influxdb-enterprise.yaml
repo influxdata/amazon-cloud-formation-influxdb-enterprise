@@ -1,0 +1,1885 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: This workload template deploys an ASG behind an ELB load balancer in
+  two private subnets. The cluster is configured to use an S3 bucket for storage **WARNING**
+  This template creates EC2 instances and related resources. You will be billed for
+  the AWS resources used if you create a stack from this template.
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Network configuration
+      Parameters:
+      - VPCID
+      - PrivateSubnet1ID
+      - PrivateSubnet2ID
+      - PrivateSubnet3ID
+      - PublicSubnet1ID
+      - PublicSubnet2ID
+      - PublicSubnet3ID
+    - Label:
+        default: Amazon EC2 configuration
+      Parameters:
+      - KeyPairName
+      - BastionSecurityGroupID
+      - WorkloadInstanceType
+    - Label:
+        default: Workload nodes configuration
+      Parameters:
+      - WorkloadNodesMinSize
+      - WorkloadNodesMaxSize
+      - WorkloadNodesDesiredCapacity
+      - OperatorEmail
+    - Label:
+        default: Workload storage configuration
+      Parameters:
+      - S3BucketName
+    - Label:
+        default: AWS Quick Start configuration
+      Parameters:
+      - QSS3BucketName
+      - QSS3BucketRegion
+      - QSS3KeyPrefix
+    ParameterLabels:
+      BastionSecurityGroupID:
+        default: Bastion security group ID
+      KeyPairName:
+        default: SSH key name
+      OperatorEmail:
+        default: Operator email
+      PrivateSubnet1ID:
+        default: Private subnet 1 ID
+      PrivateSubnet2ID:
+        default: Private subnet 2 ID
+      PrivateSubnet3ID:
+        default: Private subnet 3 ID
+      PublicSubnet1ID:
+        default: Public subnet 1 ID
+      PublicSubnet2ID:
+        default: Public subnet 2 ID
+      PublicSubnet3ID:
+        default: Public subnet 3 ID
+      QSS3BucketName:
+        default: Quick Start S3 bucket name
+      QSS3BucketRegion:
+        default: Quick Start S3 bucket region
+      QSS3KeyPrefix:
+        default: Quick Start S3 key prefix
+      S3BucketName:
+        default: S3 bucket name
+      VPCID:
+        default: VPC ID
+      WorkloadInstanceType:
+        default: Workload servers instance type
+      WorkloadNodesDesiredCapacity:
+        default: Workload nodes desired capacity
+      WorkloadNodesMaxSize:
+        default: Workload nodes max size
+      WorkloadNodesMinSize:
+        default: Workload nodes min size
+Parameters:
+  BastionSecurityGroupID:
+    Description: ID of the bastion host security group to enable SSH connections (e.g.,
+      sg-7f16e910).
+    Type: AWS::EC2::SecurityGroup::Id
+  KeyPairName:
+    Description: Name of an existing EC2 key pair. All instances will launch with
+      this key pair.
+    Type: AWS::EC2::KeyPair::KeyName
+  OperatorEmail:
+    AllowedPattern: ([a-zA-Z0-9_\-\.]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?)
+    ConstraintDescription: Must be a valid email address.
+    Description: Email address that notifications of any scaling operations will be
+      sent to.
+    Type: String
+  PrivateSubnet1ID:
+    Description: ID of private subnet 1 in Availability Zone 1 for the workload (e.g.,
+      subnet-a0246dcd).
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet2ID:
+    Description: ID of private subnet 2 in Availability Zone 2 for the workload (e.g.,
+      subnet-b1f432cd).
+    Type: AWS::EC2::Subnet::Id
+  PrivateSubnet3ID:
+    Description: ID of private subnet 3 in Availability Zone 3 for the workload (e.g.,
+      subnet-b1f432cd).
+    Type: AWS::EC2::Subnet::Id
+  PublicSubnet1ID:
+    Description: ID of public subnet 1 in Availability Zone 1 for the ELB load balancer
+      (e.g., subnet-9bc642ac).
+    Type: AWS::EC2::Subnet::Id
+  PublicSubnet2ID:
+    Description: ID of public subnet 2 in Availability Zone 2 for the ELB load balancer
+      (e.g., subnet-e3246d8e).
+    Type: AWS::EC2::Subnet::Id
+  PublicSubnet3ID:
+    Description: ID of public subnet 3 in Availability Zone 3 for the ELB load balancer
+      (e.g., subnet-e3246d8e).
+    Type: AWS::EC2::Subnet::Id
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Description: S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: 'The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.'
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: quickstart-examples/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+  S3BucketName:
+    AllowedPattern: ^[a-z0-9][a-z0-9-.]*$
+    Default: type-unique-value-here-in-lowercase
+    Description: Name of the S3 bucket that will be created for your workload to store
+      data. Enter a unique name that does not include uppercase characters.
+    Type: String
+  VPCID:
+    Description: ID of your existing VPC for deployment.
+    Type: AWS::EC2::VPC::Id
+  WorkloadInstanceType:
+    AllowedValues:
+    - t2.large
+    - m4.large
+    - m4.xlarge
+    - m4.2xlarge
+    - m4.4xlarge
+    - m4.10xlarge
+    - m3.medium
+    - m3.large
+    - m3.xlarge
+    - m3.2xlarge
+    - c4.large
+    - c4.xlarge
+    - c4.2xlarge
+    - c4.4xlarge
+    - c4.8xlarge
+    - c3.large
+    - c3.xlarge
+    - c3.2xlarge
+    - c3.4xlarge
+    - c3.8xlarge
+    - r3.large
+    - r3.xlarge
+    ConstraintDescription: Must contain valid instance type
+    Default: m4.xlarge
+    Description: Type of EC2 instance for the workload instances.
+    Type: String
+  WorkloadNodesDesiredCapacity:
+    Default: '2'
+    Description: Desired capacity for the workload nodes Auto Scaling group.
+    Type: String
+  WorkloadNodesMaxSize:
+    Default: '4'
+    Description: Maximum size of the Auto Scaling group.
+    Type: String
+  WorkloadNodesMinSize:
+    Default: '2'
+    Description: Minimum size of the Auto Scaling group.
+    Type: String
+Rules:
+  KeyPairsNotEmpty:
+    Assertions:
+    - Assert:
+        Fn::Not:
+        - Fn::EachMemberEquals:
+          - Fn::RefAll: AWS::EC2::KeyPair::KeyName
+          - ''
+      AssertDescription: All key pair parameters must not be empty
+  SubnetsInVPC:
+    Assertions:
+    - Assert:
+        Fn::EachMemberIn:
+        - Fn::ValueOfAll:
+          - AWS::EC2::Subnet::Id
+          - VpcId
+        - Fn::RefAll: AWS::EC2::VPC::Id
+      AssertDescription: All subnets must in the VPC
+Mappings:
+  AWSAMIRegionMap:
+    AMI:
+      AMZNLINUXHVM: amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2
+    ap-northeast-1:
+      AMZNLINUXHVM: ami-02ddf94e5edc8e904
+    ap-northeast-2:
+      AMZNLINUXHVM: ami-0ecd78c22823e02ef
+    ap-south-1:
+      AMZNLINUXHVM: ami-05695932c5299858a
+    ap-southeast-1:
+      AMZNLINUXHVM: ami-043afc2b8b6cfba5c
+    ap-southeast-2:
+      AMZNLINUXHVM: ami-01393ce9a3ca55d67
+    ca-central-1:
+      AMZNLINUXHVM: ami-0fa94ecf2fef3420b
+    eu-central-1:
+      AMZNLINUXHVM: ami-0ba441bdd9e494102
+    eu-west-1:
+      AMZNLINUXHVM: ami-0e61341fa75fcaa18
+    eu-west-2:
+      AMZNLINUXHVM: ami-050b8344d77081f4b
+    sa-east-1:
+      AMZNLINUXHVM: ami-05b7dbc290217250d
+    us-east-1:
+      AMZNLINUXHVM: ami-0e2ff28bfb72a4e45
+    us-east-2:
+      AMZNLINUXHVM: ami-0998bf58313ab53da
+    us-west-1:
+      AMZNLINUXHVM: ami-021bb9f371690f97a
+    us-west-2:
+      AMZNLINUXHVM: ami-079f731edfe27c29c
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+Resources:
+  InfluxDBPrivateHostedZone:
+    Type: 'AWS::Route53::HostedZone'
+    Properties:
+      Name: internal
+      HostedZoneConfig:
+        Comment: 'Hosted zone for InfluxDB Enterprise deployment at influxdb.internal.'
+      VPCs:
+        - VPCId: !Ref VPCID
+          VPCRegion: !Ref 'AWS::Region'
+  InfluxDBLoadBalancerRecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      AliasTarget:
+        DNSName: !GetAtt 
+          - InfluxDBLoadBalancer
+          - DNSName
+        HostedZoneId: !GetAtt 
+          - InfluxDBLoadBalancer
+          - CanonicalHostedZoneID
+      HostedZoneId: !Ref InfluxDBPrivateHostedZone
+      Name: influxdb.internal
+      Type: A
+  InfluxDBALBSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: >-
+        Allow traffic from public internet to go to port 8086 on InfluxDB data
+        nodes
+      VpcId: !Ref VPCID
+  InfluxDBALBSGIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref InfluxDBALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8086
+      ToPort: 8086
+      CidrIp: !Ref InfluxDBIngressCIDR
+  InfluxDBALBSGEgress:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId: !Ref InfluxDBALBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8086
+      ToPort: 8086
+      DestinationSecurityGroupId: !Ref InfluxDBDataNodeSecurityGroup
+  InfluxDBLoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      SecurityGroups:
+        - !Ref InfluxDBALBSecurityGroup
+      Subnets:
+        - !Ref PublicSubnet1ID
+        - !Ref PublicSubnet2ID
+  InfluxDBLoadBalancerListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref InfluxDBLoadBalancerTargetGroup
+      LoadBalancerArn: !Ref InfluxDBLoadBalancer
+      Port: 8086
+      Protocol: HTTP
+  InfluxDBLoadBalancerTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /ping
+      HealthCheckPort: '8086'
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: '204'
+      Port: 8086
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref VPC
+  InfluxDBInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref InfluxDBRole
+  InfluxDBRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: InfluxDBPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ec2:AttachNetworkInterface'
+                  - 'ec2:AttachVolume'
+                  - 'ec2:DescribeVolumes'
+                  - 'ec2:DescribeVolumeStatus'
+                  - 'ec2:DescribeInstances'
+                  - 'ec2:DescribeNetworkInterfaces'
+                  - 'ec2:DescribeTags'
+                  - 'autoscaling:DescribeAutoScalingGroups'
+                Resource: '*'
+  SshSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow external SSH traffic from SSH CIDR
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHCIDR
+      VpcId: !Ref VPC
+  InfluxDBDataNodeSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow traffic from ALB to go to port 8086 on InfluxDB data nodes
+      VpcId: !Ref VPC
+  InfluxDBDataNodeSGIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref InfluxDBDataNodeSecurityGroup
+      IpProtocol: tcp
+      FromPort: 8086
+      ToPort: 8086
+      SourceSecurityGroupId: !Ref InfluxDBALBSecurityGroup
+  InfluxDBInternalSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Allow all traffic between InfluxDB instances
+      VpcId: !Ref VPC
+  InfluxDBInternalSGIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref InfluxDBInternalSecurityGroup
+      IpProtocol: '-1'
+      SourceSecurityGroupId: !Ref InfluxDBInternalSecurityGroup
+  InfluxDBInternalSGEgress:
+    Type: 'AWS::EC2::SecurityGroupEgress'
+    Properties:
+      GroupId: !Ref InfluxDBInternalSecurityGroup
+      IpProtocol: '-1'
+      DestinationSecurityGroupId: !Ref InfluxDBInternalSecurityGroup
+  MetaNodeLaunchConfiguration:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          SetupNode:
+            - SetAWSCLIRegion
+            - SetLicense
+            - SetHostnames
+            - SetMonitor
+            - AttachNetwork
+            - AttachVolume
+            - MountVolume
+            - StartInfluxDB
+            - StartTelegraf
+            - ConfigureCluster
+        SetAWSCLIRegion:
+          files:
+            /root/.aws/config:
+              content: !Sub |
+                [default]
+                region = ${AWS::Region}
+              mode: '000644'
+              owner: root
+              group: root
+        SetLicense:
+          files:
+            /etc/default/influxdb-meta:
+              content: INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws
+              mode: '000644'
+              owner: root
+              group: root
+        SetHostnames:
+          commands:
+            01_set_instance_hostname:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - INFLUXDB_HOSTNAME=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-hostname''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - >-
+                    echo "INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME" >>
+                    /etc/default/influxdb-meta
+                  - |+
+
+        SetMonitor:
+          files:
+            /etc/default/telegraf:
+              content: !Join 
+                - ''
+                - - MONITOR_HOSTNAME=
+                  - !Ref MonitorDns
+                  - |+
+
+                  - MONITOR_USERNAME=
+                  - !Ref Username
+                  - |+
+
+                  - MONITOR_PASSWORD=
+                  - !Ref Password
+                  - |+
+
+              mode: '000644'
+              owner: root
+              group: root
+        AttachNetwork:
+          commands:
+            01_attach_network:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - >-
+                    # If network interface is not attached to this instance,
+                    then attach it
+                  - |+
+
+                  - ENI_ID=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-eni''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - STATUS=$( aws ec2 describe-network-interfaces
+                  - '        --network-interface-ids $ENI_ID'
+                  - '        --filters "Name=attachment.instance-id,Values=$INSTANCE_ID"'
+                  - '        --query "NetworkInterfaces[0].Attachment.Status"'
+                  - '        --output text )'
+                  - |+
+
+                  - '# TODO: switch to until ''attached'' loop'
+                  - |+
+
+                  - 'if ! [[ $STATUS =~ (attached|attaching) ]]; then'
+                  - |+
+
+                  - '# Wait until network interface is available'
+                  - |+
+
+                  - aws ec2 wait network-interface-available
+                  - '        --network-interface-ids $ENI_ID'
+                  - |+
+
+                  - aws ec2 attach-network-interface
+                  - '        --network-interface-id $ENI_ID'
+                  - '        --instance-id $INSTANCE_ID'
+                  - '        --device-index 1'
+                  - |+
+
+                  - >-
+                    # Reload network to automatically enable eth1 via Amazon
+                    Linux 2 ec2-net-utils
+                  - |+
+
+                  - systemctl restart network
+                  - |+
+
+                  - fi
+                  - |+
+
+        AttachVolume:
+          commands:
+            01_attach_volume:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - >-
+                    # If EBS volume is not attached to this instance, then
+                    attach it
+                  - |+
+
+                  - VOLUME_ID=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-volume''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - STATUS=$( aws ec2 describe-volumes
+                  - '        --volume-ids $VOLUME_ID'
+                  - '        --filters "Name=attachment.instance-id,Values=$INSTANCE_ID"'
+                  - '        --query "Volumes[0].Attachments[0].State"'
+                  - '        --output text )'
+                  - |+
+
+                  - 'if ! [[ $STATUS =~ (attached|attaching) ]]; then'
+                  - |+
+
+                  - '# Wait until volume is available'
+                  - |+
+
+                  - aws ec2 wait volume-available
+                  - '        --volume-ids $VOLUME_ID'
+                  - |+
+
+                  - aws ec2 attach-volume
+                  - '        --volume-id $VOLUME_ID'
+                  - '        --instance-id $INSTANCE_ID'
+                  - '        --device /dev/xvdh'
+                  - |+
+
+                  - 'until [[ "$('
+                  - aws ec2 describe-volume-status
+                  - '        --volume-ids $VOLUME_ID'
+                  - '        --query ''VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'''
+                  - '        --output text'
+                  - ')" == ''passed'' ]]; do sleep 5; done'
+                  - |+
+
+                  - fi
+                  - |+
+
+        MountVolume:
+          commands:
+            01_mount_volumes:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - /sbin/ebsnvme-id -b /dev/nvme1n1
+                  - |+
+
+                  - 'until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done'
+                  - |+
+
+                  - 'if [[ "$(lsblk -no FSTYPE /dev/xvdh)" != "ext4" ]]; then'
+                  - |+
+
+                  - /usr/sbin/mkfs -t ext4 /dev/xvdh
+                  - |+
+
+                  - sleep 10
+                  - |+
+
+                  - fi
+                  - |+
+
+                  - mkdir -p /influxdb
+                  - |+
+
+                  - mount /dev/xvdh /influxdb
+                  - |+
+
+                  - /sbin/resize2fs /dev/xvdh
+                  - |+
+
+                  - mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh
+                  - |+
+
+                  - 'chown -R influxdb:influxdb /influxdb'
+                  - |+
+
+            02_set_fstab:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - DEVICE_UUID="$(blkid -s UUID -o value /dev/xvdh)"
+                  - |+
+
+                  - if grep -q "$DEVICE_UUID" /etc/fstab; then
+                  - |+
+
+                  - echo "fstab already set"
+                  - |+
+
+                  - else
+                  - |+
+
+                  - cp /etc/fstab /etc/fstab.original
+                  - |+
+
+                  - "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab"
+                  - |+
+
+                  - fi
+                  - |+
+
+        StartInfluxDB:
+          commands:
+            01_enable_influxdb_service:
+              command: systemctl enable influxdb-meta
+            02_start_influxdb_service:
+              command: systemctl start influxdb-meta
+        StartTelegraf:
+          commands:
+            01_enable_telegraf_service:
+              command: systemctl enable telegraf
+            02_start_telegraf_service:
+              command: systemctl start telegraf
+        ConfigureCluster:
+          commands:
+            01_join_nodes:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - LEADER=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-leader''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - 'if [[ $LEADER == ''true'' ]]; then'
+                  - |+
+
+                  - 'while [[ "$(curl -s -o /dev/null -w ''''%{http_code}'''' '
+                  - !Ref MetaNodeDns00
+                  - ':8091/status)" != ''200'' ]]; do sleep 5; done'
+                  - |+
+
+                  - 'influxd-ctl add-meta '
+                  - !Ref MetaNodeDns00
+                  - ':8091'
+                  - |+
+
+                  - 'influxd-ctl add-meta '
+                  - !Ref MetaNodeDns01
+                  - ':8091'
+                  - |+
+
+                  - 'influxd-ctl add-meta '
+                  - !Ref MetaNodeDns02
+                  - ':8091'
+                  - |+
+
+                  - 'influxd-ctl add-data '
+                  - !Ref DataNodeDns03
+                  - ':8088'
+                  - |+
+
+                  - 'influxd-ctl add-data '
+                  - !Ref DataNodeDns04
+                  - ':8088'
+                  - |+
+
+                  - 'curl -u '
+                  - !Ref Username
+                  - ':'
+                  - !Ref Password
+                  - ' "http://'
+                  - !Ref DataNodeDns03
+                  - ':8086/query"'
+                  - '        --data-urlencode "q='
+                  - 'CREATE USER '
+                  - !Ref Username
+                  - ' WITH PASSWORD '''
+                  - !Ref Password
+                  - ''' WITH ALL PRIVILEGES'
+                  - '"'
+                  - |+
+
+                  - 'curl -u '
+                  - !Ref Username
+                  - ':'
+                  - !Ref Password
+                  - ' http://'
+                  - !Ref DataNodeDns03
+                  - ':8086/query'
+                  - '        --data-urlencode ''q=CREATE DATABASE telegraf'''
+                  - |+
+
+                  - fi
+                  - |+
+
+    Properties:
+      ImageId: !FindInMap 
+        - AMIRegionMap
+        - !Ref 'AWS::Region'
+        - Meta
+      InstanceType: !Ref MetaNodeInstanceType
+      SecurityGroups:
+        - !Ref SshSecurityGroup
+        - !Ref InfluxDBInternalSecurityGroup
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref InfluxDBInstanceProfile
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - '#!/usr/bin/env bash'
+            - |+
+
+            - set -euxo pipefail
+            - |+
+
+            - yum update -y aws-cfn-bootstrap ec2-net-utils
+            - |+
+
+            - >-
+              export INSTANCE_ID=$( curl -s
+              http://169.254.169.254/latest/meta-data/instance-id )
+            - |+
+
+            - '/opt/aws/bin/cfn-init -v '
+            - '        --stack '
+            - !Ref 'AWS::StackName'
+            - '        --region '
+            - !Ref 'AWS::Region'
+            - '        --resource MetaNodeLaunchConfiguration '
+            - '        --configsets SetupNode'
+            - |+
+
+            - ASG_NAME=$( aws ec2 describe-tags
+            - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+            - '        --query "Tags[?Key==''aws:cloudformation:logical-id''].Value"'
+            - '        --output text )'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - '/opt/aws/bin/cfn-signal -e $? '
+            - '        --stack '
+            - !Ref 'AWS::StackName'
+            - '        --region '
+            - !Ref 'AWS::Region'
+            - '        --resource $ASG_NAME'
+            - |+
+
+  MetaNodeEni00:
+    Type: 'AWS::EC2::NetworkInterface'
+    Properties:
+      Description: ENI for data node one ASG
+      GroupSet:
+        - !Ref InfluxDBInternalSecurityGroup
+      SubnetId: !Ref PrivateSubnet1ID
+  MetaNodeDns00:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      ResourceRecords:
+        - !GetAtt 
+          - MetaNodeEni00
+          - PrimaryPrivateIpAddress
+      HostedZoneId: !Ref InfluxDBPrivateHostedZone
+      Name: meta-0.influxdb.internal
+      Type: A
+      TTL: '60'
+  MetaNodeVolume00:
+    Type: 'AWS::EC2::Volume'
+    Properties:
+      AvailabilityZone: !GetAtt 
+        - PrivateSubnet1ID
+        - AvailabilityZone
+      Size: 25
+      VolumeType: gp2
+      AutoEnableIO: true
+      Encrypted: true
+    DeletionPolicy: Snapshot
+  MetaNodeAutoScalingGroup00:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    DependsOn:
+      - MetaNodeAutoScalingGroup01
+      - MetaNodeAutoScalingGroup02
+      - DataNodeAutoScalingGroup03
+      - DataNodeAutoScalingGroup04
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1ID
+      LaunchConfigurationName: !Ref MetaNodeLaunchConfiguration
+      DesiredCapacity: '1'
+      MinSize: '0'
+      MaxSize: '1'
+      Tags:
+        - Key: influxdb-eni
+          Value: !Ref MetaNodeEni00
+          PropagateAtLaunch: true
+        - Key: influxdb-volume
+          Value: !Ref MetaNodeVolume00
+          PropagateAtLaunch: true
+        - Key: influxdb-hostname
+          Value: !Ref MetaNodeDns00
+          PropagateAtLaunch: true
+        - Key: Name
+          Value: meta-0
+          PropagateAtLaunch: true
+        - Key: influxdb-leader
+          Value: 'true'
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: '1'
+        Timeout: PT60M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        PauseTime: PT10M
+        WaitOnResourceSignals: true
+  MetaNodeEni01:
+    Type: 'AWS::EC2::NetworkInterface'
+    Properties:
+      Description: ENI for data node one ASG
+      GroupSet:
+        - !Ref InfluxDBInternalSecurityGroup
+      SubnetId: !Ref PrivateSubnet2ID
+  MetaNodeDns01:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      ResourceRecords:
+        - !GetAtt 
+          - MetaNodeEni01
+          - PrimaryPrivateIpAddress
+      HostedZoneId: !Ref InfluxDBPrivateHostedZone
+      Name: meta-1.influxdb.internal
+      Type: A
+      TTL: '60'
+  MetaNodeVolume01:
+    Type: 'AWS::EC2::Volume'
+    Properties:
+      AvailabilityZone: !GetAtt 
+        - PrivateSubnet2ID
+        - AvailabilityZone
+      Size: 20
+      VolumeType: gp2
+      AutoEnableIO: true
+      Encrypted: true
+    DeletionPolicy: Snapshot
+  MetaNodeAutoScalingGroup01:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet2ID
+      LaunchConfigurationName: !Ref MetaNodeLaunchConfiguration
+      DesiredCapacity: '1'
+      MinSize: '0'
+      MaxSize: '1'
+      Tags:
+        - Key: influxdb-eni
+          Value: !Ref MetaNodeEni01
+          PropagateAtLaunch: true
+        - Key: influxdb-volume
+          Value: !Ref MetaNodeVolume01
+          PropagateAtLaunch: true
+        - Key: influxdb-hostname
+          Value: !Ref MetaNodeDns01
+          PropagateAtLaunch: true
+        - Key: Name
+          Value: meta-1
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: '1'
+        Timeout: PT60M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        PauseTime: PT10M
+        WaitOnResourceSignals: true
+  MetaNodeEni02:
+    Type: 'AWS::EC2::NetworkInterface'
+    Properties:
+      Description: ENI for data node one ASG
+      GroupSet:
+        - !Ref InfluxDBInternalSecurityGroup
+      SubnetId: !Ref PrivateSubnet3ID
+  MetaNodeDns02:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      ResourceRecords:
+        - !GetAtt 
+          - MetaNodeEni02
+          - PrimaryPrivateIpAddress
+      HostedZoneId: !Ref InfluxDBPrivateHostedZone
+      Name: meta-2.influxdb.internal
+      Type: A
+      TTL: '60'
+  MetaNodeVolume02:
+    Type: 'AWS::EC2::Volume'
+    Properties:
+      AvailabilityZone: !GetAtt 
+        - PrivateSubnet3ID
+        - AvailabilityZone
+      Size: 20
+      VolumeType: gp2
+      AutoEnableIO: true
+      Encrypted: true
+    DeletionPolicy: Snapshot
+  MetaNodeAutoScalingGroup02:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet3ID
+      LaunchConfigurationName: !Ref MetaNodeLaunchConfiguration
+      DesiredCapacity: '1'
+      MinSize: '0'
+      MaxSize: '1'
+      Tags:
+        - Key: influxdb-eni
+          Value: !Ref MetaNodeEni02
+          PropagateAtLaunch: true
+        - Key: influxdb-volume
+          Value: !Ref MetaNodeVolume02
+          PropagateAtLaunch: true
+        - Key: influxdb-hostname
+          Value: !Ref MetaNodeDns02
+          PropagateAtLaunch: true
+        - Key: Name
+          Value: meta-2
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: '1'
+        Timeout: PT60M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        PauseTime: PT10M
+        WaitOnResourceSignals: true
+  DataNodeLaunchConfiguration:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          SetupNode:
+            - SetAWSCLIRegion
+            - SetLicense
+            - SetHostnames
+            - SetMonitor
+            - AttachNetwork
+            - AttachVolume
+            - MountVolume
+            - StartInfluxDB
+            - StartTelegraf
+        SetAWSCLIRegion:
+          files:
+            /root/.aws/config:
+              content: !Sub |
+                [default]
+                region = ${AWS::Region}
+              mode: '000644'
+              owner: root
+              group: root
+        SetLicense:
+          files:
+            /etc/default/influxdb:
+              content: INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws
+              mode: '000644'
+              owner: root
+              group: root
+        SetHostnames:
+          commands:
+            01_set_instance_hostname:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - INFLUXDB_HOSTNAME=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-hostname''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - >-
+                    echo "INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME" >>
+                    /etc/default/influxdb
+                  - |+
+
+                  - >-
+                    echo "INFLUXDB_HTTP_FLUX_ENABLED=true" >>
+                    /etc/default/influxdb
+                  - |+
+
+        SetMonitor:
+          files:
+            /etc/default/telegraf:
+              content: !Join 
+                - ''
+                - - MONITOR_HOSTNAME=
+                  - !Ref MonitorDns
+                  - |+
+
+                  - MONITOR_USERNAME=
+                  - !Ref Username
+                  - |+
+
+                  - MONITOR_PASSWORD=
+                  - !Ref Password
+                  - |+
+
+              mode: '000644'
+              owner: root
+              group: root
+        AttachNetwork:
+          commands:
+            01_attach_network:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - >-
+                    # If network interface is not attached to this instance,
+                    then attach it
+                  - |+
+
+                  - ENI_ID=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-eni''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - STATUS=$( aws ec2 describe-network-interfaces
+                  - '        --network-interface-ids $ENI_ID'
+                  - '        --filters "Name=attachment.instance-id,Values=$INSTANCE_ID"'
+                  - '        --query "NetworkInterfaces[0].Attachment.Status"'
+                  - '        --output text )'
+                  - |+
+
+                  - '# TODO: switch to until ''attached'' loop'
+                  - |+
+
+                  - 'if ! [[ $STATUS =~ (attached|attaching) ]]; then'
+                  - |+
+
+                  - '# Wait until network interface is available'
+                  - |+
+
+                  - aws ec2 wait network-interface-available
+                  - '        --network-interface-ids $ENI_ID'
+                  - |+
+
+                  - aws ec2 attach-network-interface
+                  - '        --network-interface-id $ENI_ID'
+                  - '        --instance-id $INSTANCE_ID'
+                  - '        --device-index 1'
+                  - |+
+
+                  - >-
+                    # Reload network to automatically enable eth1 via Amazon
+                    Linux 2 ec2-net-utils
+                  - |+
+
+                  - systemctl restart network
+                  - |+
+
+                  - fi
+                  - |+
+
+        AttachVolume:
+          commands:
+            01_attach_volume:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - >-
+                    # If EBS volume is not attached to this instance, then
+                    attach it
+                  - |+
+
+                  - VOLUME_ID=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-volume''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - STATUS=$( aws ec2 describe-volumes
+                  - '        --volume-ids $VOLUME_ID'
+                  - '        --filters "Name=attachment.instance-id,Values=$INSTANCE_ID"'
+                  - '        --query "Volumes[0].Attachments[0].State"'
+                  - '        --output text )'
+                  - |+
+
+                  - 'if ! [[ $STATUS =~ (attached|attaching) ]]; then'
+                  - |+
+
+                  - '# Wait until volume is available'
+                  - |+
+
+                  - aws ec2 wait volume-available
+                  - '        --volume-ids $VOLUME_ID'
+                  - |+
+
+                  - aws ec2 attach-volume
+                  - '        --volume-id $VOLUME_ID'
+                  - '        --instance-id $INSTANCE_ID'
+                  - '        --device /dev/xvdh'
+                  - |+
+
+                  - 'until [[ "$('
+                  - aws ec2 describe-volume-status
+                  - '        --volume-ids $VOLUME_ID'
+                  - '        --query ''VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'''
+                  - '        --output text'
+                  - ')" == ''passed'' ]]; do sleep 5; done'
+                  - |+
+
+                  - fi
+                  - |+
+
+        MountVolume:
+          commands:
+            01_mount_volumes:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - /sbin/ebsnvme-id -b /dev/nvme1n1
+                  - |+
+
+                  - 'until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done'
+                  - |+
+
+                  - 'if [[ "$(lsblk -no FSTYPE /dev/xvdh)" != "ext4" ]]; then'
+                  - |+
+
+                  - /usr/sbin/mkfs -t ext4 /dev/xvdh
+                  - |+
+
+                  - sleep 10
+                  - |+
+
+                  - fi
+                  - |+
+
+                  - mkdir -p /influxdb
+                  - |+
+
+                  - mount /dev/xvdh /influxdb
+                  - |+
+
+                  - /sbin/resize2fs /dev/xvdh
+                  - |+
+
+                  - mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh
+                  - |+
+
+                  - 'chown -R influxdb:influxdb /influxdb'
+                  - |+
+
+            02_set_fstab:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - DEVICE_UUID="$(blkid -s UUID -o value /dev/xvdh)"
+                  - |+
+
+                  - if grep -q "$DEVICE_UUID" /etc/fstab; then
+                  - |+
+
+                  - echo "fstab already set"
+                  - |+
+
+                  - else
+                  - |+
+
+                  - cp /etc/fstab /etc/fstab.original
+                  - |+
+
+                  - "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab"
+                  - |+
+
+                  - fi
+                  - |+
+
+        StartInfluxDB:
+          commands:
+            01_enable_influxdb_service:
+              command: systemctl enable influxdb
+            02_start_influxdb_service:
+              command: systemctl start influxdb
+        StartTelegraf:
+          commands:
+            01_enable_telegraf_service:
+              command: systemctl enable telegraf
+            02_start_telegraf_service:
+              command: systemctl start telegraf
+    Properties:
+      ImageId: !FindInMap 
+        - AMIRegionMap
+        - !Ref 'AWS::Region'
+        - Data
+      InstanceType: !Ref DataNodeInstanceType
+      SecurityGroups:
+        - !Ref SshSecurityGroup
+        - !Ref InfluxDBInternalSecurityGroup
+        - !Ref InfluxDBDataNodeSecurityGroup
+      KeyName: !Ref KeyName
+      EbsOptimized: true
+      IamInstanceProfile: !Ref InfluxDBInstanceProfile
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - '#!/usr/bin/env bash'
+            - |+
+
+            - set -euxo pipefail
+            - |+
+
+            - yum update -y aws-cfn-bootstrap ec2-net-utils
+            - |+
+
+            - >-
+              export INSTANCE_ID=$( curl -s
+              http://169.254.169.254/latest/meta-data/instance-id )
+            - |+
+
+            - '/opt/aws/bin/cfn-init -v '
+            - '        --stack '
+            - !Ref 'AWS::StackName'
+            - '        --region '
+            - !Ref 'AWS::Region'
+            - '        --resource DataNodeLaunchConfiguration '
+            - '        --configsets SetupNode'
+            - |+
+
+            - ASG_NAME=$( aws ec2 describe-tags
+            - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+            - '        --query "Tags[?Key==''aws:cloudformation:logical-id''].Value"'
+            - '        --output text )'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - '/opt/aws/bin/cfn-signal -e $? '
+            - '        --stack '
+            - !Ref 'AWS::StackName'
+            - '        --region '
+            - !Ref 'AWS::Region'
+            - '        --resource $ASG_NAME'
+            - |+
+
+  DataNodeEni03:
+    Type: 'AWS::EC2::NetworkInterface'
+    Properties:
+      Description: ENI for data node one ASG
+      GroupSet:
+        - !Ref InfluxDBInternalSecurityGroup
+      SubnetId: !Ref PrivateSubnet1ID
+  DataNodeDns03:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      ResourceRecords:
+        - !GetAtt 
+          - DataNodeEni03
+          - PrimaryPrivateIpAddress
+      HostedZoneId: !Ref InfluxDBPrivateHostedZone
+      Name: data-3.influxdb.internal
+      Type: A
+      TTL: '60'
+  DataNodeVolume03:
+    Type: 'AWS::EC2::Volume'
+    Properties:
+      AvailabilityZone: !GetAtt 
+        - PrivateSubnet1ID
+        - AvailabilityZone
+      Size: !Ref DataNodeDiskSize
+      VolumeType: io1
+      Iops: !Ref DataNodeDiskIops
+      AutoEnableIO: true
+      Encrypted: true
+    DeletionPolicy: Snapshot
+  DataNodeAutoScalingGroup03:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1ID
+      LaunchConfigurationName: !Ref DataNodeLaunchConfiguration
+      DesiredCapacity: '1'
+      MinSize: '0'
+      MaxSize: '1'
+      TargetGroupARNs:
+        - !Ref InfluxDBLoadBalancerTargetGroup
+      Tags:
+        - Key: influxdb-eni
+          Value: !Ref DataNodeEni03
+          PropagateAtLaunch: true
+        - Key: influxdb-volume
+          Value: !Ref DataNodeVolume03
+          PropagateAtLaunch: true
+        - Key: influxdb-hostname
+          Value: !Ref DataNodeDns03
+          PropagateAtLaunch: true
+        - Key: Name
+          Value: data-3
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: '1'
+        Timeout: PT60M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        PauseTime: PT10M
+        WaitOnResourceSignals: true
+  DataNodeEni04:
+    Type: 'AWS::EC2::NetworkInterface'
+    Properties:
+      Description: ENI for data node one ASG
+      GroupSet:
+        - !Ref InfluxDBInternalSecurityGroup
+      SubnetId: !Ref PrivateSubnet2ID
+  DataNodeDns04:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      ResourceRecords:
+        - !GetAtt 
+          - DataNodeEni04
+          - PrimaryPrivateIpAddress
+      HostedZoneId: !Ref InfluxDBPrivateHostedZone
+      Name: data-4.influxdb.internal
+      Type: A
+      TTL: '60'
+  DataNodeVolume04:
+    Type: 'AWS::EC2::Volume'
+    Properties:
+      AvailabilityZone: !GetAtt 
+        - PrivateSubnet2ID
+        - AvailabilityZone
+      Size: !Ref DataNodeDiskSize
+      VolumeType: io1
+      Iops: !Ref DataNodeDiskIops
+      AutoEnableIO: true
+      Encrypted: true
+    DeletionPolicy: Snapshot
+  DataNodeAutoScalingGroup04:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet2ID
+      LaunchConfigurationName: !Ref DataNodeLaunchConfiguration
+      DesiredCapacity: '1'
+      MinSize: '0'
+      MaxSize: '1'
+      TargetGroupARNs:
+        - !Ref InfluxDBLoadBalancerTargetGroup
+      Tags:
+        - Key: influxdb-eni
+          Value: !Ref DataNodeEni04
+          PropagateAtLaunch: true
+        - Key: influxdb-volume
+          Value: !Ref DataNodeVolume04
+          PropagateAtLaunch: true
+        - Key: influxdb-hostname
+          Value: !Ref DataNodeDns04
+          PropagateAtLaunch: true
+        - Key: Name
+          Value: data-4
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: '1'
+        Timeout: PT60M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        PauseTime: PT10M
+        WaitOnResourceSignals: true
+  MonitorLaunchConfiguration:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Metadata:
+      'AWS::CloudFormation::Init':
+        configSets:
+          SetupNode:
+            - SetAWSCLIRegion
+            - SetHostnames
+            - SetMonitor
+            - SetKapacitor
+            - AttachNetwork
+            - AttachVolume
+            - MountVolume
+            - StartInfluxDB
+            - StartTelegraf
+            - StartChronograf
+            - StartKapacitor
+            - ConfigureCluster
+        SetAWSCLIRegion:
+          files:
+            /root/.aws/config:
+              content: !Sub |
+                [default]
+                region = ${AWS::Region}
+              mode: '000644'
+              owner: root
+              group: root
+        SetHostnames:
+          commands:
+            01_set_instance_hostname:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - INFLUXDB_HOSTNAME=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-hostname''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - >-
+                    echo "INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME" >>
+                    /etc/default/influxdb
+                  - |+
+
+        SetMonitor:
+          files:
+            /etc/default/telegraf:
+              content: !Join 
+                - ''
+                - - MONITOR_HOSTNAME=
+                  - !Ref MonitorDns
+                  - |+
+
+                  - MONITOR_USERNAME=
+                  - !Ref Username
+                  - |+
+
+                  - MONITOR_PASSWORD=
+                  - !Ref Password
+                  - |+
+
+              mode: '000644'
+              owner: root
+              group: root
+        SetKapacitor:
+          files:
+            /etc/default/kapacitor:
+              content: !Join 
+                - ''
+                - - 'KAPACITOR_INFLUXDB_0_URLS_0=http://'
+                  - !Ref MonitorDns
+                  - |
+                    :8086
+                  - KAPACITOR_INFLUXDB_0_NAME=
+                  - !Ref MonitorDns
+                  - |+
+
+                  - KAPACITOR_INFLUXDB_0_USERNAME=
+                  - !Ref Username
+                  - |+
+
+                  - KAPACITOR_INFLUXDB_0_PASSWORD=
+                  - !Ref Password
+                  - |+
+
+              mode: '000644'
+              owner: root
+              group: root
+        AttachNetwork:
+          commands:
+            01_attach_network:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - >-
+                    # If network interface is not attached to this instance,
+                    then attach it
+                  - |+
+
+                  - ENI_ID=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-eni''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - STATUS=$( aws ec2 describe-network-interfaces
+                  - '        --network-interface-ids $ENI_ID'
+                  - '        --filters "Name=attachment.instance-id,Values=$INSTANCE_ID"'
+                  - '        --query "NetworkInterfaces[0].Attachment.Status"'
+                  - '        --output text )'
+                  - |+
+
+                  - '# TODO: switch to until ''attached'' loop'
+                  - |+
+
+                  - 'if ! [[ $STATUS =~ (attached|attaching) ]]; then'
+                  - |+
+
+                  - '# Wait until network interface is available'
+                  - |+
+
+                  - aws ec2 wait network-interface-available
+                  - '        --network-interface-ids $ENI_ID'
+                  - |+
+
+                  - aws ec2 attach-network-interface
+                  - '        --network-interface-id $ENI_ID'
+                  - '        --instance-id $INSTANCE_ID'
+                  - '        --device-index 1'
+                  - |+
+
+                  - >-
+                    # Reload network to automatically enable eth1 via Amazon
+                    Linux 2 ec2-net-utils
+                  - |+
+
+                  - systemctl restart network
+                  - |+
+
+                  - fi
+                  - |+
+
+        AttachVolume:
+          commands:
+            01_attach_volume:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - >-
+                    # If EBS volume is not attached to this instance, then
+                    attach it
+                  - |+
+
+                  - VOLUME_ID=$( aws ec2 describe-tags
+                  - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+                  - '        --query "Tags[?Key==''influxdb-volume''].Value"'
+                  - '        --output text )'
+                  - |+
+
+                  - STATUS=$( aws ec2 describe-volumes
+                  - '        --volume-ids $VOLUME_ID'
+                  - '        --filters "Name=attachment.instance-id,Values=$INSTANCE_ID"'
+                  - '        --query "Volumes[0].Attachments[0].State"'
+                  - '        --output text )'
+                  - |+
+
+                  - 'if ! [[ $STATUS =~ (attached|attaching) ]]; then'
+                  - |+
+
+                  - '# Wait until volume is available'
+                  - |+
+
+                  - aws ec2 wait volume-available
+                  - '        --volume-ids $VOLUME_ID'
+                  - |+
+
+                  - aws ec2 attach-volume
+                  - '        --volume-id $VOLUME_ID'
+                  - '        --instance-id $INSTANCE_ID'
+                  - '        --device /dev/xvdh'
+                  - |+
+
+                  - 'until [[ "$('
+                  - aws ec2 describe-volume-status
+                  - '        --volume-ids $VOLUME_ID'
+                  - '        --query ''VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'''
+                  - '        --output text'
+                  - ')" == ''passed'' ]]; do sleep 5; done'
+                  - |+
+
+                  - fi
+                  - |+
+
+        MountVolume:
+          commands:
+            01_mount_volumes:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - /sbin/ebsnvme-id -b /dev/nvme1n1
+                  - |+
+
+                  - 'until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done'
+                  - |+
+
+                  - 'if [[ "$(lsblk -no FSTYPE /dev/xvdh)" != "ext4" ]]; then'
+                  - |+
+
+                  - /usr/sbin/mkfs -t ext4 /dev/xvdh
+                  - |+
+
+                  - sleep 10
+                  - |+
+
+                  - fi
+                  - |+
+
+                  - mkdir -p /influxdb
+                  - |+
+
+                  - mount /dev/xvdh /influxdb
+                  - |+
+
+                  - /sbin/resize2fs /dev/xvdh
+                  - |+
+
+                  - mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh
+                  - |+
+
+                  - 'chown -R influxdb:influxdb /influxdb'
+                  - |+
+
+                  - 'chown -R kapacitor:kapacitor /var/log/kapacitor'
+                  - |+
+
+                  - mkdir -p /influxdb/kapacitor
+                  - |+
+
+                  - 'chown -R kapacitor:kapacitor /influxdb/kapacitor'
+                  - |+
+
+            02_set_fstab:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - DEVICE_UUID="$(blkid -s UUID -o value /dev/xvdh)"
+                  - |+
+
+                  - if grep -q "$DEVICE_UUID" /etc/fstab; then
+                  - |+
+
+                  - echo "fstab already set"
+                  - |+
+
+                  - else
+                  - |+
+
+                  - cp /etc/fstab /etc/fstab.original
+                  - |+
+
+                  - "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab"
+                  - |+
+
+                  - fi
+                  - |+
+
+        StartInfluxDB:
+          commands:
+            01_enable_influxdb_service:
+              command: systemctl enable influxdb
+            02_start_influxdb_service:
+              command: systemctl start influxdb
+        StartTelegraf:
+          commands:
+            01_enable_telegraf_service:
+              command: systemctl enable telegraf
+            02_start_telegraf_service:
+              command: systemctl start telegraf
+        StartChronograf:
+          commands:
+            01_enable_chronograf_service:
+              command: systemctl enable chronograf
+            02_start_chronograf_service:
+              command: systemctl start chronograf
+        StartKapacitor:
+          commands:
+            01_enable_kapacitor_service:
+              command: systemctl enable kapacitor
+            02_start_kapacitor_service:
+              command: service kapacitor start
+        ConfigureCluster:
+          commands:
+            01_create_influxdb_user:
+              command: !Join 
+                - ''
+                - - set -x
+                  - |+
+
+                  - '# Wait until InfluxDB monitor is listening'
+                  - |+
+
+                  - 'while [[ "'
+                  - >-
+                    $(curl -s -o /dev/null -w ''%{http_code}''
+                    monitor.influxdb.internal:8086/ping)
+                  - '" != ''204'' ]]; do sleep 5; done'
+                  - |+
+
+                  - 'curl -u '
+                  - !Ref Username
+                  - ':'
+                  - !Ref Password
+                  - ' "http://'
+                  - !Ref MonitorDns
+                  - ':8086/query"'
+                  - '        --data-urlencode "q='
+                  - 'CREATE USER '
+                  - !Ref Username
+                  - ' WITH PASSWORD '''
+                  - !Ref Password
+                  - ''' WITH ALL PRIVILEGES'
+                  - '"'
+                  - |+
+
+                  - 'curl -u '
+                  - !Ref Username
+                  - ':'
+                  - !Ref Password
+                  - ' http://'
+                  - !Ref MonitorDns
+                  - ':8086/query'
+                  - '        --data-urlencode ''q=CREATE DATABASE telegraf WITH DURATION 30d SHARD DURATION 7d'''
+                  - |+
+
+    Properties:
+      ImageId: !FindInMap 
+        - AMIRegionMap
+        - !Ref 'AWS::Region'
+        - Monitor
+      InstanceType: !Ref MonitorInstanceType
+      SecurityGroups:
+        - !Ref SshSecurityGroup
+        - !Ref InfluxDBInternalSecurityGroup
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref InfluxDBInstanceProfile
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - '#!/usr/bin/env bash'
+            - |+
+
+            - set -euxo pipefail
+            - |+
+
+            - yum update -y aws-cfn-bootstrap ec2-net-utils
+            - |+
+
+            - >-
+              export INSTANCE_ID=$( curl -s
+              http://169.254.169.254/latest/meta-data/instance-id )
+            - |+
+
+            - '/opt/aws/bin/cfn-init -v '
+            - '        --stack '
+            - !Ref 'AWS::StackName'
+            - '        --region '
+            - !Ref 'AWS::Region'
+            - '        --resource MonitorLaunchConfiguration '
+            - '        --configsets SetupNode'
+            - |+
+
+            - ASG_NAME=$( aws ec2 describe-tags
+            - '        --filters "Name=resource-id,Values=$INSTANCE_ID"'
+            - '        --query "Tags[?Key==''aws:cloudformation:logical-id''].Value"'
+            - '        --output text )'
+            - |+
+
+            - |
+              # Signal the status from cfn-init
+            - '/opt/aws/bin/cfn-signal -e $? '
+            - '        --stack '
+            - !Ref 'AWS::StackName'
+            - '        --region '
+            - !Ref 'AWS::Region'
+            - '        --resource $ASG_NAME'
+            - |+
+
+  MonitorEni:
+    Type: 'AWS::EC2::NetworkInterface'
+    Properties:
+      Description: ENI for data node one ASG
+      GroupSet:
+        - !Ref InfluxDBInternalSecurityGroup
+      SubnetId: !Ref PrivateSubnet3ID
+  MonitorDns:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      ResourceRecords:
+        - !GetAtt 
+          - MonitorEni
+          - PrimaryPrivateIpAddress
+      HostedZoneId: !Ref InfluxDBPrivateHostedZone
+      Name: monitor.influxdb.internal
+      Type: A
+      TTL: '60'
+  MonitorVolume:
+    Type: 'AWS::EC2::Volume'
+    Properties:
+      AvailabilityZone: !GetAtt 
+        - PrivateSubnet3ID
+        - AvailabilityZone
+      Size: 100
+      VolumeType: gp2
+      AutoEnableIO: true
+      Encrypted: true
+    DeletionPolicy: Snapshot
+  MonitorAutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet3ID
+      LaunchConfigurationName: !Ref MonitorLaunchConfiguration
+      DesiredCapacity: '1'
+      MinSize: '0'
+      MaxSize: '1'
+      Tags:
+        - Key: influxdb-eni
+          Value: !Ref MonitorEni
+          PropagateAtLaunch: true
+        - Key: influxdb-volume
+          Value: !Ref MonitorVolume
+          PropagateAtLaunch: true
+        - Key: influxdb-hostname
+          Value: !Ref MonitorDns
+          PropagateAtLaunch: true
+        - Key: Name
+          Value: monitor
+          PropagateAtLaunch: true
+    CreationPolicy:
+      ResourceSignal:
+        Count: '1'
+        Timeout: PT60M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 0
+        MaxBatchSize: 1
+        PauseTime: PT10M
+        WaitOnResourceSignals: true
+Outputs:
+  ELBDNSName:
+    Description: ELB DNS Name
+    Value:
+      Fn::GetAtt:
+      - ElasticLoadBalancer
+      - DNSName

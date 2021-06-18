@@ -1,0 +1,5 @@
+,{
+    "Key": "influxdb-leader",
+    "Value": "true",
+    "PropagateAtLaunch": true
+}

@@ -1,0 +1,6 @@
+"DependsOn": [
+    "MetaNodeAutoScalingGroup01",
+    "MetaNodeAutoScalingGroup02",
+    "DataNodeAutoScalingGroup03",
+    "DataNodeAutoScalingGroup04"
+],

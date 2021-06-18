@@ -1,0 +1,979 @@
+{
+   "AWSTemplateFormatVersion": "2010-09-09",
+   "Description": "InfluxDB Enterprise",
+   "Mappings": {
+      "AMIRegionMap": {
+         "us-east-1": {
+            "Data": "ami-0c63a32c3ab901af4",
+            "Meta": "ami-02f1f34d3582babdc",
+            "Monitor": "ami-090cf6257fe0c8a8c"
+         }
+      }
+   },
+   "Metadata": {
+      "AWS::CloudFormation::Interface": {
+         "ParameterGroups": [
+            {
+               "Label": {
+                  "default": "Network Configuration"
+               },
+               "Parameters": [
+                  "VpcClassB",
+                  "InfluxDBIngressCIDR",
+                  "KeyName",
+                  "SSHCIDR"
+               ]
+            },
+            {
+               "Label": {
+                  "default": "InfluxDB Configuration"
+               },
+               "Parameters": [
+                  "Username",
+                  "Password",
+                  "DataNodeDiskSize",
+                  "DataNodeDiskIops"
+               ]
+            }
+         ],
+         "ParameterLabels": {
+            "DataNodeDiskIops": {
+               "default": "InfluxDB Data Node Disk IOPS"
+            },
+            "DataNodeDiskSize": {
+               "default": "InfluxDB Data Node Disk Size"
+            },
+            "DataNodeInstanceType": {
+               "default": "InfluxDB Data Node Instance Type"
+            },
+            "InfluxDBIngressCIDR": {
+               "default": "InfluxDB ingress CIDR (Public IPv4 address range of InfluxDB users)"
+            },
+            "KeyName": {
+               "default": "SSH Key Name"
+            },
+            "MetaNodeInstanceType": {
+               "default": "InfluxDB Meta Node Instance Type"
+            },
+            "MonitorInstanceType": {
+               "default": "InfluxDB Monitor Instance Type"
+            },
+            "Password": {
+               "default": "InfluxDB Administrator Password"
+            },
+            "SSHCIDR": {
+               "default": "SSH Access CIDR (Public IPv4 address range of the administrator's network)"
+            },
+            "Username": {
+               "default": "InfluxDB Administrator Username"
+            }
+         }
+      }
+   },
+   "Outputs": {
+      "InfluxDBAPIEndpoint": {
+         "Description": "The ALB endpoint that can be used to access the InfluxDB API. Listens on port 8086.",
+         "Export": {
+            "Name": {
+               "Fn::Join": [
+                  ":",
+                  [
+                     {
+                        "Ref": "AWS::StackName"
+                     },
+                     "InfluxDBAPIEndpoint"
+                  ]
+               ]
+            }
+         },
+         "Value": {
+            "Fn::GetAtt": [
+               "InfluxDBLoadBalancer",
+               "DNSName"
+            ]
+         }
+      }
+   },
+   "Parameters": {
+      "DataNodeDiskIops": {
+         "Default": 1000,
+         "Description": "IOPS of the EBS io1 volume on each data node",
+         "Type": "Number"
+      },
+      "DataNodeDiskSize": {
+         "Default": 250,
+         "Description": "Size in GB of the EBS io1 volume on each data node",
+         "Type": "Number"
+      },
+      "DataNodeInstanceType": {
+         "AllowedValues": [
+            "m4.xlarge",
+            "m4.2xlarge",
+            "m4.4xlarge",
+            "m4.10xlarge",
+            "m4.16xlarge",
+            "m5.large",
+            "m5.xlarge",
+            "m5.2xlarge",
+            "m5.4xlarge",
+            "m5.8xlarge",
+            "m5.12xlarge",
+            "m5.16xlarge",
+            "m5.24xlarge",
+            "c4.xlarge",
+            "c4.2xlarge",
+            "c4.4xlarge",
+            "c4.8xlarge",
+            "c5.xlarge",
+            "c5.2xlarge",
+            "c5.4xlarge",
+            "c5.9xlarge",
+            "c5.12xlarge",
+            "c5.18xlarge",
+            "c5.24xlarge",
+            "r4.xlarge",
+            "r4.2xlarge",
+            "r4.4xlarge",
+            "r4.8xlarge",
+            "r4.16xlarge",
+            "r5.xlarge",
+            "r5.2xlarge",
+            "r5.4xlarge",
+            "r5.8xlarge",
+            "r5.12xlarge",
+            "r5.16xlarge",
+            "r5.24xlarge",
+            "r5.xlarge"
+         ],
+         "ConstraintDescription": "must be a valid EC2 instance type.",
+         "Default": "m5.large",
+         "Description": "Instance type for data nodes",
+         "Type": "String"
+      },
+      "InfluxDBIngressCIDR": {
+         "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+         "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x.",
+         "Description": "The IP address range that can be used to connect to the InfluxDB API endpoint",
+         "MaxLength": "18",
+         "MinLength": "9",
+         "Type": "String"
+      },
+      "KeyName": {
+         "ConstraintDescription": "must be the name of an existing EC2 KeyPair.",
+         "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+         "Type": "AWS::EC2::KeyPair::KeyName"
+      },
+      "MetaNodeInstanceType": {
+         "AllowedValues": [
+            "t2.small",
+            "t2.medium",
+            "t2.large",
+            "t3.small",
+            "t3.medium",
+            "t3.large"
+         ],
+         "ConstraintDescription": "must be a valid EC2 instance type.",
+         "Default": "t3.small",
+         "Description": "Instance type for meta nodes",
+         "Type": "String"
+      },
+      "MonitorInstanceType": {
+         "AllowedValues": [
+            "t2.small",
+            "t2.medium",
+            "t2.large",
+            "t3.small",
+            "t3.medium",
+            "t3.large"
+         ],
+         "ConstraintDescription": "must be a valid EC2 instance type.",
+         "Default": "t3.small",
+         "Description": "Instance type for monitoring node",
+         "Type": "String"
+      },
+      "Password": {
+         "Description": "Password for cluster administrator user",
+         "NoEcho": true,
+         "Type": "String"
+      },
+      "SSHCIDR": {
+         "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+         "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x.",
+         "Description": "The IP address range that can be used to SSH to the EC2 instances",
+         "MaxLength": "18",
+         "MinLength": "9",
+         "Type": "String"
+      },
+      "Username": {
+         "Description": "Username for the initial cluster administrator user",
+         "Type": "String"
+      },
+      "VpcClassB": {
+         "ConstraintDescription": "Allowed values are 0 through 255",
+         "Default": 0,
+         "Description": "Class B of Virtual Private Cloud's (VPC) CIDR, e.g. 10.XXX.0.0/16",
+         "MaxValue": 255,
+         "MinValue": 0,
+         "Type": "Number"
+      }
+   },
+   "Resources": {
+      "DataNodeLaunchConfiguration": {
+         "Metadata": {
+            "AWS::CloudFormation::Init": {
+               "AttachNetwork": {
+                  "commands": {
+                     "01_attach_network": {
+                        "command": {
+                           "Fn::Join": [
+                              "",
+                              [
+                                 "set -x",
+                                 "\n",
+                                 "# If network interface is not attached to this instance, then attach it",
+                                 "\n",
+                                 "ENI_ID=$( aws ec2 describe-tags",
+                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
+                                 "        --query \"Tags[?Key=='influxdb-eni'].Value\"",
+                                 "        --output text )",
+                                 "\n",
+                                 "STATUS=$( aws ec2 describe-network-interfaces",
+                                 "        --network-interface-ids $ENI_ID",
+                                 "        --filters \"Name=attachment.instance-id,Values=$INSTANCE_ID\"",
+                                 "        --query \"NetworkInterfaces[0].Attachment.Status\"",
+                                 "        --output text )",
+                                 "\n",
+                                 "# TODO: switch to until 'attached' loop",
+                                 "\n",
+                                 "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
+                                 "\n",
+                                 "# Wait until network interface is available",
+                                 "\n",
+                                 "aws ec2 wait network-interface-available",
+                                 "        --network-interface-ids $ENI_ID",
+                                 "\n",
+                                 "aws ec2 attach-network-interface",
+                                 "        --network-interface-id $ENI_ID",
+                                 "        --instance-id $INSTANCE_ID",
+                                 "        --device-index 1",
+                                 "\n",
+                                 "# Reload network to automatically enable eth1 via Amazon Linux 2 ec2-net-utils",
+                                 "\n",
+                                 "systemctl restart network",
+                                 "\n",
+                                 "fi",
+                                 "\n"
+                              ]
+                           ]
+                        }
+                     }
+                  }
+               },
+               "AttachVolume": {
+                  "commands": {
+                     "01_attach_volume": {
+                        "command": {
+                           "Fn::Join": [
+                              "",
+                              [
+                                 "set -x",
+                                 "\n",
+                                 "# If EBS volume is not attached to this instance, then attach it",
+                                 "\n",
+                                 "VOLUME_ID=$( aws ec2 describe-tags",
+                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
+                                 "        --query \"Tags[?Key=='influxdb-volume'].Value\"",
+                                 "        --output text )",
+                                 "\n",
+                                 "STATUS=$( aws ec2 describe-volumes",
+                                 "        --volume-ids $VOLUME_ID",
+                                 "        --filters \"Name=attachment.instance-id,Values=$INSTANCE_ID\"",
+                                 "        --query \"Volumes[0].Attachments[0].State\"",
+                                 "        --output text )",
+                                 "\n",
+                                 "if ! [[ $STATUS =~ (attached|attaching) ]]; then",
+                                 "\n",
+                                 "# Wait until volume is available",
+                                 "\n",
+                                 "aws ec2 wait volume-available",
+                                 "        --volume-ids $VOLUME_ID",
+                                 "\n",
+                                 "aws ec2 attach-volume",
+                                 "        --volume-id $VOLUME_ID",
+                                 "        --instance-id $INSTANCE_ID",
+                                 "        --device /dev/xvdh",
+                                 "\n",
+                                 "until [[ \"$(",
+                                 "aws ec2 describe-volume-status",
+                                 "        --volume-ids $VOLUME_ID",
+                                 "        --query 'VolumeStatuses[0].VolumeStatus.Details[?Name==`io-enabled`].Status'",
+                                 "        --output text",
+                                 ")\" == 'passed' ]]; do sleep 5; done",
+                                 "\n",
+                                 "fi",
+                                 "\n"
+                              ]
+                           ]
+                        }
+                     }
+                  }
+               },
+               "MountVolume": {
+                  "commands": {
+                     "01_mount_volumes": {
+                        "command": {
+                           "Fn::Join": [
+                              "",
+                              [
+                                 "set -x",
+                                 "\n",
+                                 "/sbin/ebsnvme-id -b /dev/nvme1n1",
+                                 "\n",
+                                 "until [ -b $(readlink -f /dev/xvdh) ]; do sleep 1; done",
+                                 "\n",
+                                 "if [[ \"$(lsblk -no FSTYPE /dev/xvdh)\" != \"ext4\" ]]; then",
+                                 "\n",
+                                 "/usr/sbin/mkfs -t ext4 /dev/xvdh",
+                                 "\n",
+                                 "sleep 10",
+                                 "\n",
+                                 "fi",
+                                 "\n",
+                                 "mkdir -p /influxdb",
+                                 "\n",
+                                 "mount /dev/xvdh /influxdb",
+                                 "\n",
+                                 "/sbin/resize2fs /dev/xvdh",
+                                 "\n",
+                                 "mkdir -p /influxdb/meta /influxdb /influxdb/wal /influxdb/hh",
+                                 "\n",
+                                 "chown -R influxdb:influxdb /influxdb",
+                                 "\n"
+                              ]
+                           ]
+                        }
+                     },
+                     "02_set_fstab": {
+                        "command": {
+                           "Fn::Join": [
+                              "",
+                              [
+                                 "set -x",
+                                 "\n",
+                                 "DEVICE_UUID=\"$(blkid -s UUID -o value /dev/xvdh)\"",
+                                 "\n",
+                                 "if grep -q \"$DEVICE_UUID\" /etc/fstab; then",
+                                 "\n",
+                                 "echo \"fstab already set\"",
+                                 "\n",
+                                 "else",
+                                 "\n",
+                                 "cp /etc/fstab /etc/fstab.original",
+                                 "\n",
+                                 "echo -e \"UUID=$DEVICE_UUID\t/influxdb\text4\tdefaults,nofail\t0\t2\" >> /etc/fstab",
+                                 "\n",
+                                 "fi",
+                                 "\n"
+                              ]
+                           ]
+                        }
+                     }
+                  }
+               },
+               "SetAWSCLIRegion": {
+                  "files": {
+                     "/root/.aws/config": {
+                        "content": {
+                           "Fn::Sub": "[default]\nregion = ${AWS::Region}\n"
+                        },
+                        "group": "root",
+                        "mode": "000644",
+                        "owner": "root"
+                     }
+                  }
+               },
+               "SetHostnames": {
+                  "commands": {
+                     "01_set_instance_hostname": {
+                        "command": {
+                           "Fn::Join": [
+                              "",
+                              [
+                                 "set -x",
+                                 "\n",
+                                 "INFLUXDB_HOSTNAME=$( aws ec2 describe-tags",
+                                 "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
+                                 "        --query \"Tags[?Key=='influxdb-hostname'].Value\"",
+                                 "        --output text )",
+                                 "\n",
+                                 "echo \"INFLUXDB_HOSTNAME=$INFLUXDB_HOSTNAME\" >> /etc/default/influxdb",
+                                 "\n"
+                              ]
+                           ]
+                        }
+                     }
+                  }
+               },
+               "SetLicense": {
+                  "files": {
+                     "/etc/default/influxdb-meta": {
+                        "content": "INFLUXDB_ENTERPRISE_MARKETPLACE_ENV=aws",
+                        "group": "root",
+                        "mode": "000644",
+                        "owner": "root"
+                     }
+                  }
+               },
+               "SetMonitor": {
+                  "files": {
+                     "/etc/default/telegraf": {
+                        "content": {
+                           "Fn::Join": [
+                              "",
+                              [
+                                 "MONITOR_HOSTNAME=",
+                                 {
+                                    "Ref": "MonitorDns"
+                                 },
+                                 "\n",
+                                 "MONITOR_USERNAME=",
+                                 {
+                                    "Ref": "Username"
+                                 },
+                                 "\n",
+                                 "MONITOR_PASSWORD=",
+                                 {
+                                    "Ref": "Password"
+                                 },
+                                 "\n"
+                              ]
+                           ]
+                        },
+                        "group": "root",
+                        "mode": "000644",
+                        "owner": "root"
+                     }
+                  }
+               },
+               "StartInfluxDB": {
+                  "commands": {
+                     "01_enable_influxdb_service": {
+                        "command": "systemctl enable influxdb"
+                     },
+                     "02_start_influxdb_service": {
+                        "command": "systemctl start influxdb"
+                     }
+                  }
+               },
+               "StartTelegraf": {
+                  "commands": {
+                     "01_enable_telegraf_service": {
+                        "command": "systemctl enable telegraf"
+                     },
+                     "02_start_telegraf_service": {
+                        "command": "systemctl start telegraf"
+                     }
+                  }
+               },
+               "configSets": {
+                  "SetupNode": [
+                     "SetAWSCLIRegion",
+                     "SetLicense",
+                     "SetHostnames",
+                     "SetMonitor",
+                     "AttachNetwork",
+                     "AttachVolume",
+                     "MountVolume",
+                     "StartInfluxDB",
+                     "StartTelegraf"
+                  ]
+               }
+            }
+         },
+         "Properties": {
+            "EbsOptimized": true,
+            "IamInstanceProfile": {
+               "Ref": "InfluxDBInstanceProfile"
+            },
+            "ImageId": {
+               "Fn::FindInMap": [
+                  "AMIRegionMap",
+                  {
+                     "Ref": "AWS::Region"
+                  },
+                  "Data"
+               ]
+            },
+            "InstanceType": {
+               "Ref": "DataNodeInstanceType"
+            },
+            "KeyName": {
+               "Ref": "KeyName"
+            },
+            "SecurityGroups": [
+               {
+                  "Ref": "SshSecurityGroup"
+               },
+               {
+                  "Ref": "InfluxDBInternalSecurityGroup"
+               },
+               {
+                  "Ref": "InfluxDBDataNodeSecurityGroup"
+               }
+            ],
+            "UserData": {
+               "Fn::Base64": {
+                  "Fn::Join": [
+                     "",
+                     [
+                        "#!/usr/bin/env bash",
+                        "\n",
+                        "set -euxo pipefail",
+                        "\n",
+                        "yum update -y aws-cfn-bootstrap ec2-net-utils",
+                        "\n",
+                        "export INSTANCE_ID=$( curl -s http://169.254.169.254/latest/meta-data/instance-id )",
+                        "\n",
+                        "/opt/aws/bin/cfn-init -v ",
+                        "        --stack ",
+                        {
+                           "Ref": "AWS::StackName"
+                        },
+                        "        --region ",
+                        {
+                           "Ref": "AWS::Region"
+                        },
+                        "        --resource DataNodeLaunchConfiguration ",
+                        "        --configsets SetupNode",
+                        "\n",
+                        "ASG_NAME=$( aws ec2 describe-tags",
+                        "        --filters \"Name=resource-id,Values=$INSTANCE_ID\"",
+                        "        --query \"Tags[?Key=='aws:cloudformation:logical-id'].Value\"",
+                        "        --output text )",
+                        "\n",
+                        "# Signal the status from cfn-init\n",
+                        "/opt/aws/bin/cfn-signal -e $? ",
+                        "        --stack ",
+                        {
+                           "Ref": "AWS::StackName"
+                        },
+                        "        --region ",
+                        {
+                           "Ref": "AWS::Region"
+                        },
+                        "        --resource $ASG_NAME",
+                        "\n"
+                     ]
+                  ]
+               }
+            }
+         },
+         "Type": "AWS::AutoScaling::LaunchConfiguration"
+      },
+      "InfluxDBALBSGEgress": {
+         "Properties": {
+            "DestinationSecurityGroupId": {
+               "Ref": "InfluxDBDataNodeSecurityGroup"
+            },
+            "FromPort": 8086,
+            "GroupId": {
+               "Ref": "InfluxDBALBSecurityGroup"
+            },
+            "IpProtocol": "tcp",
+            "ToPort": 8086
+         },
+         "Type": "AWS::EC2::SecurityGroupEgress"
+      },
+      "InfluxDBALBSGIngress": {
+         "Properties": {
+            "CidrIp": {
+               "Ref": "InfluxDBIngressCIDR"
+            },
+            "FromPort": 8086,
+            "GroupId": {
+               "Ref": "InfluxDBALBSecurityGroup"
+            },
+            "IpProtocol": "tcp",
+            "ToPort": 8086
+         },
+         "Type": "AWS::EC2::SecurityGroupIngress"
+      },
+      "InfluxDBALBSecurityGroup": {
+         "Properties": {
+            "GroupDescription": "Allow traffic from public internet to go to port 8086 on InfluxDB data nodes",
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::SecurityGroup"
+      },
+      "InfluxDBDataNodeSGIngress": {
+         "Properties": {
+            "FromPort": 8086,
+            "GroupId": {
+               "Ref": "InfluxDBDataNodeSecurityGroup"
+            },
+            "IpProtocol": "tcp",
+            "SourceSecurityGroupId": {
+               "Ref": "InfluxDBALBSecurityGroup"
+            },
+            "ToPort": 8086
+         },
+         "Type": "AWS::EC2::SecurityGroupIngress"
+      },
+      "InfluxDBDataNodeSecurityGroup": {
+         "Properties": {
+            "GroupDescription": "Allow traffic from ALB to go to port 8086 on InfluxDB data nodes",
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::SecurityGroup"
+      },
+      "InfluxDBInstanceProfile": {
+         "Properties": {
+            "Roles": [
+               {
+                  "Ref": "InfluxDBRole"
+               }
+            ]
+         },
+         "Type": "AWS::IAM::InstanceProfile"
+      },
+      "InfluxDBInternalSGEgress": {
+         "Properties": {
+            "DestinationSecurityGroupId": {
+               "Ref": "InfluxDBInternalSecurityGroup"
+            },
+            "GroupId": {
+               "Ref": "InfluxDBInternalSecurityGroup"
+            },
+            "IpProtocol": "-1"
+         },
+         "Type": "AWS::EC2::SecurityGroupEgress"
+      },
+      "InfluxDBInternalSGIngress": {
+         "Properties": {
+            "GroupId": {
+               "Ref": "InfluxDBInternalSecurityGroup"
+            },
+            "IpProtocol": "-1",
+            "SourceSecurityGroupId": {
+               "Ref": "InfluxDBInternalSecurityGroup"
+            }
+         },
+         "Type": "AWS::EC2::SecurityGroupIngress"
+      },
+      "InfluxDBInternalSecurityGroup": {
+         "Properties": {
+            "GroupDescription": "Allow all traffic between InfluxDB instances",
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::SecurityGroup"
+      },
+      "InfluxDBLoadBalancer": {
+         "Properties": {
+            "SecurityGroups": [
+               {
+                  "Ref": "InfluxDBALBSecurityGroup"
+               }
+            ],
+            "Subnets": [
+               {
+                  "Ref": "Subnet00"
+               },
+               {
+                  "Ref": "Subnet01"
+               },
+               {
+                  "Ref": "Subnet02"
+               }
+            ]
+         },
+         "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer"
+      },
+      "InfluxDBLoadBalancerListener": {
+         "Properties": {
+            "DefaultActions": [
+               {
+                  "TargetGroupArn": {
+                     "Ref": "InfluxDBLoadBalancerTargetGroup"
+                  },
+                  "Type": "forward"
+               }
+            ],
+            "LoadBalancerArn": {
+               "Ref": "InfluxDBLoadBalancer"
+            },
+            "Port": 8086,
+            "Protocol": "HTTP"
+         },
+         "Type": "AWS::ElasticLoadBalancingV2::Listener"
+      },
+      "InfluxDBLoadBalancerRecordSet": {
+         "Properties": {
+            "AliasTarget": {
+               "DNSName": {
+                  "Fn::GetAtt": [
+                     "InfluxDBLoadBalancer",
+                     "DNSName"
+                  ]
+               },
+               "HostedZoneId": {
+                  "Fn::GetAtt": [
+                     "InfluxDBLoadBalancer",
+                     "CanonicalHostedZoneID"
+                  ]
+               }
+            },
+            "HostedZoneId": {
+               "Ref": "InfluxDBPrivateHostedZone"
+            },
+            "Name": "influxdb.internal",
+            "Type": "A"
+         },
+         "Type": "AWS::Route53::RecordSet"
+      },
+      "InfluxDBLoadBalancerTargetGroup": {
+         "Properties": {
+            "HealthCheckIntervalSeconds": 30,
+            "HealthCheckPath": "/ping",
+            "HealthCheckPort": "8086",
+            "HealthCheckProtocol": "HTTP",
+            "HealthCheckTimeoutSeconds": 10,
+            "HealthyThresholdCount": 2,
+            "Matcher": {
+               "HttpCode": "204"
+            },
+            "Port": 8086,
+            "Protocol": "HTTP",
+            "UnhealthyThresholdCount": 2,
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::ElasticLoadBalancingV2::TargetGroup"
+      },
+      "InfluxDBPrivateHostedZone": {
+         "Properties": {
+            "Name": "internal",
+            "VPCs": [
+               {
+                  "VPCId": {
+                     "Ref": "VPC"
+                  },
+                  "VPCRegion": {
+                     "Ref": "AWS::Region"
+                  }
+               }
+            ]
+         },
+         "Type": "AWS::Route53::HostedZone"
+      },
+      "InfluxDBRole": {
+         "Properties": {
+            "AssumeRolePolicyDocument": {
+               "Statement": [
+                  {
+                     "Action": [
+                        "sts:AssumeRole"
+                     ],
+                     "Effect": "Allow",
+                     "Principal": {
+                        "Service": [
+                           "ec2.amazonaws.com"
+                        ]
+                     }
+                  }
+               ],
+               "Version": "2012-10-17"
+            },
+            "Policies": [
+               {
+                  "PolicyDocument": {
+                     "Statement": [
+                        {
+                           "Action": [
+                              "ec2:AttachNetworkInterface",
+                              "ec2:AttachVolume",
+                              "ec2:DescribeVolumes",
+                              "ec2:DescribeVolumeStatus",
+                              "ec2:DescribeInstances",
+                              "ec2:DescribeNetworkInterfaces",
+                              "ec2:DescribeTags",
+                              "autoscaling:DescribeAutoScalingGroups"
+                           ],
+                           "Effect": "Allow",
+                           "Resource": "*"
+                        }
+                     ],
+                     "Version": "2012-10-17"
+                  },
+                  "PolicyName": "InfluxDBPolicy"
+               }
+            ]
+         },
+         "Type": "AWS::IAM::Role"
+      },
+      "InternetGateway": {
+         "Type": "AWS::EC2::InternetGateway"
+      },
+      "Route": {
+         "DependsOn": "VPCGatewayAttachment",
+         "Properties": {
+            "DestinationCidrBlock": "0.0.0.0/0",
+            "GatewayId": {
+               "Ref": "InternetGateway"
+            },
+            "RouteTableId": {
+               "Ref": "RouteTable"
+            }
+         },
+         "Type": "AWS::EC2::Route"
+      },
+      "RouteTable": {
+         "Properties": {
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::RouteTable"
+      },
+      "SshSecurityGroup": {
+         "Properties": {
+            "GroupDescription": "Allow external SSH traffic from SSH CIDR parameter",
+            "SecurityGroupIngress": [
+               {
+                  "CidrIp": {
+                     "Ref": "SSHCIDR"
+                  },
+                  "FromPort": 22,
+                  "IpProtocol": "tcp",
+                  "ToPort": 22
+               }
+            ],
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::SecurityGroup"
+      },
+      "Subnet00": {
+         "Properties": {
+            "AvailabilityZone": {
+               "Fn::Select": [
+                  "0",
+                  {
+                     "Fn::GetAZs": ""
+                  }
+               ]
+            },
+            "CidrBlock": {
+               "Fn::Sub": "10.${VpcClassB}.0.0/20"
+            },
+            "MapPublicIpOnLaunch": true,
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::Subnet"
+      },
+      "Subnet00RouteTableAssociation": {
+         "Properties": {
+            "RouteTableId": {
+               "Ref": "RouteTable"
+            },
+            "SubnetId": {
+               "Ref": "Subnet00"
+            }
+         },
+         "Type": "AWS::EC2::SubnetRouteTableAssociation"
+      },
+      "Subnet01": {
+         "Properties": {
+            "AvailabilityZone": {
+               "Fn::Select": [
+                  "1",
+                  {
+                     "Fn::GetAZs": ""
+                  }
+               ]
+            },
+            "CidrBlock": {
+               "Fn::Sub": "10.${VpcClassB}.16.0/20"
+            },
+            "MapPublicIpOnLaunch": true,
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::Subnet"
+      },
+      "Subnet01RouteTableAssociation": {
+         "Properties": {
+            "RouteTableId": {
+               "Ref": "RouteTable"
+            },
+            "SubnetId": {
+               "Ref": "Subnet01"
+            }
+         },
+         "Type": "AWS::EC2::SubnetRouteTableAssociation"
+      },
+      "Subnet02": {
+         "Properties": {
+            "AvailabilityZone": {
+               "Fn::Select": [
+                  "2",
+                  {
+                     "Fn::GetAZs": ""
+                  }
+               ]
+            },
+            "CidrBlock": {
+               "Fn::Sub": "10.${VpcClassB}.32.0/20"
+            },
+            "MapPublicIpOnLaunch": true,
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::Subnet"
+      },
+      "Subnet02RouteTableAssociation": {
+         "Properties": {
+            "RouteTableId": {
+               "Ref": "RouteTable"
+            },
+            "SubnetId": {
+               "Ref": "Subnet02"
+            }
+         },
+         "Type": "AWS::EC2::SubnetRouteTableAssociation"
+      },
+      "VPC": {
+         "Properties": {
+            "CidrBlock": {
+               "Fn::Sub": "10.${VpcClassB}.0.0/16"
+            },
+            "EnableDnsHostnames": true,
+            "EnableDnsSupport": true,
+            "InstanceTenancy": "default"
+         },
+         "Type": "AWS::EC2::VPC"
+      },
+      "VPCGatewayAttachment": {
+         "Properties": {
+            "InternetGatewayId": {
+               "Ref": "InternetGateway"
+            },
+            "VpcId": {
+               "Ref": "VPC"
+            }
+         },
+         "Type": "AWS::EC2::VPCGatewayAttachment"
+      }
+   }
+}

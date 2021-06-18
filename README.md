@@ -54,3 +54,15 @@ Next, run either the `deploy-multi-az.sh` and `deploy-single-az.sh` script to cr
 export LICENSE_KEY=a1b2c3d4-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ./deploy-multi-az.sh
 ```
+
+
+### EC2 key pairs
+
+The template requires an [Amazon EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) in the AWS account in the region where the cluster will be deployed.
+
+### VPC network
+
+The template requires a VPC subnet which matches the typical public/private subnet configuration found in the [AWS VPC Quickstart documentation](https://github.com/aws-quickstart/quickstart-aws-vpc/blob/main/templates/aws-vpc.template.yaml). The official template in S3 is [here](https://aws-quickstart.s3.amazonaws.com/quickstart-aws-vpc/templates/aws-vpc.template.yaml). The VPC must have the following parameters:
+
+- There must be at least 3 AZs (`NumberOfAZs` parameter).
+

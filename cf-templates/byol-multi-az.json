@@ -86,9 +86,9 @@
         "DataNodeInstanceType": {
             "Description": "Instance type for data nodes",
             "Type": "String",
-            "Default": "m5.4xlarge",
+            "Default": "m5.large",
             "AllowedValues": [
-                "m5.4xlarge",
+                "m5.large",
                 "m4.4xlarge",
                 "r5.4xlarge",
                 "r4.4xlarge",
@@ -188,9 +188,9 @@
     "Mappings": {
         "AMIRegionMap": {
             "us-east-1": {
-                "Data": "ami-03f4ac3b0586b47db",
-                "Meta": "ami-0160362a6874e1056",
-                "Monitor": "ami-038cec5466942cdb7"
+                "Data": "ami-0c63a32c3ab901af4",
+                "Meta": "ami-02f1f34d3582babdc",
+                "Monitor": "ami-090cf6257fe0c8a8c"
             },
             "us-east-2": {
                 "Data": "ami-0ce54c6577b63e4aa",
@@ -1490,7 +1490,7 @@
                     },
                     "SetHostnames": {
                         "commands": {
-                            "01_set_instance_hostname": {
+                        "01_set_instance_hostname": {
                                 "command": {
                                     "Fn::Join": [
                                         "",

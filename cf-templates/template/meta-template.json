@@ -1,0 +1,109 @@
+"MetaNodeEni<node-index>": {
+    "Type": "AWS::EC2::NetworkInterface",
+    "Properties": {
+        "Description": "ENI for data node one ASG",
+        "GroupSet": [
+            {
+                "Ref": "InfluxDBInternalSecurityGroup"
+            }
+        ],
+        "SubnetId": {
+            "Ref": "Subnet<subnet-index>"
+        }
+    }
+},
+"MetaNodeDns<node-index>": {
+    "Type": "AWS::Route53::RecordSet",
+    "Properties": {
+        "ResourceRecords": [
+            {
+                "Fn::GetAtt": [
+                    "MetaNodeEni<node-index>",
+                    "PrimaryPrivateIpAddress"
+                ]
+            }
+        ],
+        "HostedZoneId": {
+            "Ref": "InfluxDBPrivateHostedZone"
+        },
+        "Name": "meta-<node-index>.influxdb.internal",
+        "Type": "A",
+        "TTL": "60"
+    }
+},
+"MetaNodeVolume<node-index>": {
+    "Type": "AWS::EC2::Volume",
+    "Properties": {
+        "AvailabilityZone": {
+            "Fn::GetAtt": [
+                "Subnet<subnet-index>",
+                "AvailabilityZone"
+            ]
+        },
+        "Size": 20,
+        "VolumeType": "gp2",
+        "AutoEnableIO": true,
+        "Encrypted": true
+    },
+    "DeletionPolicy": "Snapshot"
+},
+"MetaNodeAutoScalingGroup<node-index>": {
+    "Type": "AWS::AutoScaling::AutoScalingGroup",
+    <meta-leader-dependson>
+    "Properties": {
+        "VPCZoneIdentifier": [
+            {
+                "Ref": "Subnet<subnet-index>"
+            }
+        ],
+        "LaunchConfigurationName": {
+            "Ref": "MetaNodeLaunchConfiguration"
+        },
+        "DesiredCapacity": "1",
+        "MinSize": "0",
+        "MaxSize": "1",
+        "Tags": [
+            {
+                "Key": "influxdb-eni",
+                "Value": {
+                    "Ref": "MetaNodeEni<node-index>"
+                },
+                "PropagateAtLaunch": true
+            },
+            {
+                "Key": "influxdb-volume",
+                "Value": {
+                    "Ref": "MetaNodeVolume<node-index>"
+                },
+                "PropagateAtLaunch": true
+            },
+            {
+                "Key": "influxdb-hostname",
+                "Value": {
+                    "Ref": "MetaNodeDns<node-index>"
+                },
+                "PropagateAtLaunch": true
+            },
+            {
+                "Key": "Name",
+                "Value": "meta-<node-index>",
+                "PropagateAtLaunch": true
+            }
+            <meta-leader-metadata>
+        ]
+    },
+    "CreationPolicy": {
+        "ResourceSignal": {
+            "Count": "1",
+            "Timeout": "PT60M"
+        }
+    },
+    "UpdatePolicy": {
+        "AutoScalingRollingUpdate": {
+            "MinInstancesInService": 0,
+            "MaxBatchSize": 1,
+            "PauseTime": "PT10M",
+            "WaitOnResourceSignals": true
+        }
+    }
+},
