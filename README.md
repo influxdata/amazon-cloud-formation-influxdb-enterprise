@@ -1,3 +1,7 @@
+# [NOTICE] This repo is archived.
+
+The cooresponding AWS Marketplace offer that used these templates has been deprecated. This repo is being archived to reflect the lack of active development and support for these templates.
+
 # InfluxDB Enterprise AWS Cloud Formation Templates
 
 This repository contains templates to build AMIs for InfluxDB Enterprise as well as CloudFormation templates to deploy and configure an InfluxDB Enterprise cluster. These are also the source AMI and
